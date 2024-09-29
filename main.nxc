@@ -1,0 +1,151 @@
+// Definicao dos motores ativos
+#define MOTOR_GARRA OUT_B
+#define MOTOR_DIREITO OUT_A
+#define MOTOR_ESQUERDO OUT_C
+#define MOTOR_DIREITO_ESQUERDO OUT_AC
+
+// Definicao dos sensores ativos
+#define SENSOR_COR S1
+#define SENSOR_TOQUE S3
+#define SENSOR_ULTRASSOM S2
+
+// Canal de comunicação Bluetooth
+#define CANAL 1 
+
+// Potencias dos motores
+#define VELOCIDADE_MAXIMA 100
+#define VELOCIDADE_MEDIA 75
+#define VELOCIDADE_MINIMA 50
+
+// Distancia maxima permitida da parede
+#define DISTANCIA 30
+
+// Cores usadas
+#define PRETO 1
+#define PRATA 2
+#define BRANCO 3
+#define VERMELHO 4
+
+bool direcao = false;
+
+int lerCor() {
+    int valorLuz = Sensor(SENSOR_COR);
+
+    if (valorLuz < 20) {
+        return PRETO;
+    }
+    else if (valorLuz >= 20 && valorLuz < 40) {
+        return PRATA;
+    }
+    else if (valorLuz >= 40 && valorLuz < 60) {
+        return BRANCO;
+    }
+    else if (valorLuz >= 60) {
+        return VERMELHO;
+    }
+
+    return -1;
+}
+
+void rotacionaRobo(int grau_rotacao, bool direcao) {
+    Off(MOTOR_DIREITO_ESQUERDO);
+
+    // 1 grau de giro do robo equivale a aproximadamente 2 graus de rotacao do motor
+    int rotacao = grau_rotacao * 2;
+    if (direcao) { 
+      RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA, rotacao, 100, true, true);
+    } else {
+      RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA, -rotacao, 100, true, true);
+    }
+    
+    Wait(1000);
+    Off(MOTOR_DIREITO_ESQUERDO);
+}
+
+void qtdGirosRodaEsquerda(int num_voltas, bool frente){
+    Off(MOTOR_DIREITO_ESQUERDO);
+    int rotacaoMotorEsquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+    int rotacaoMotorEsquerdo_aux = MotorRotationCount(MOTOR_ESQUERDO);
+
+    while (rotacaoMotorEsquerdo-rotacaoMotorEsquerdo_aux+(360*num_voltas) >= 360*num_voltas
+            && SensorUS(SENSOR_ULTRASSOM) >= DISTANCIA) {
+        if (frente){
+           OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
+        }else{
+            OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
+        }
+        rotacaoMotorEsquerdo_aux = MotorRotationCount(MOTOR_ESQUERDO);
+    }
+    Off(MOTOR_DIREITO_ESQUERDO);
+    
+}
+
+void movimento90graus(bool direcao, int qtd_giros){ // se direcao true ->, se false <-
+    rotacionaRobo(90, direcao);
+    qtdGirosRodaEsquerda(qtd_giros, true);
+    rotacionaRobo(90, !direcao);
+}
+
+void saida_estacao(){
+    bool detectou_linha_preta = false;
+
+    while (true) {
+        int cor_detectada = lerCor();
+        int distancia = SensorUS(SENSOR_ULTRASSOM);
+
+        if (cor_detectada == PRETO){
+            qtdGirosRodaEsquerda(1, false); // recua um pouco da linha preta
+            detectou_linha_preta = true;
+            movimento90graus(direcao, 1);
+        }
+        else if (cor_detectada == PRATA) {
+            OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
+            break;
+        }
+        else if (distancia >= DISTANCIA && cor_detectada == BRANCO){
+            OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+        }
+        else if (distancia == DISTANCIA){
+            if (detectou_linha_preta){
+                direcao = !direcao; // inverte a direcao que o robo estava indo
+                movimento90graus(direcao, 1);
+            }else{
+                rotacionaRobo(90, direcao);
+            }
+        }
+        else{
+            Off(MOTOR_DIREITO_ESQUERDO);
+        }
+        Wait(500);
+    }
+}
+
+void entrada_estacao(){}
+
+void pegar_objeto(){}
+
+void entregar_objeto(){}
+
+
+task main() {
+    SetSensorLight(SENSOR_COR);
+    SetSensorTouch(SENSOR_TOQUE);
+    SetSensorUltrasonic(SENSOR_ULTRASSOM);
+
+    // while (BluetoothStatus(CANAL) != NO_ERR) {
+    //     Wait(100);
+    // }
+    // string msg;
+    // ReceiveRemoteString(CANAL, true, msg);
+    // SendRemoteString(CANAL, 1, "testando")
+
+    while(Sensor(SENSOR_TOQUE) == 0){}
+
+    Wait(5000);
+    saida_estacao();    // 1 estado - saida da estacao de recarga
+    entrada_estacao();  // 2 estado - entrada na estacao de estoque
+    pegar_objeto();     // 3 estado - pegar um objeto na estacao de estoque
+    saida_estacao();    // 4 estado - saida da estacao de estoque
+    entregar_objeto();  // 5 estado - entregar objeto 
+    entrada_estacao();  // 6 estado - entrada na estacao de recarga
+}
