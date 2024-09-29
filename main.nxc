@@ -93,7 +93,11 @@ void saida_estacao(){
         int cor_detectada = lerCor();
         int distancia = SensorUS(SENSOR_ULTRASSOM);
 
-        if (cor_detectada == PRETO){
+        if(Sensor(SENSOR_TOQUE) == 1){
+            Off(MOTOR_DIREITO_ESQUERDO);
+            break;
+        }
+        else if (cor_detectada == PRETO){
             qtdGirosRodaEsquerda(1, false); // recua um pouco da linha preta
             detectou_linha_preta = true;
             movimento90graus(direcao, 1);
@@ -132,20 +136,22 @@ task main() {
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    // while (BluetoothStatus(CANAL) != NO_ERR) {
-    //     Wait(100);
-    // }
-    // string msg;
-    // ReceiveRemoteString(CANAL, true, msg);
-    // SendRemoteString(CANAL, 1, "testando")
+    while (BluetoothStatus(CANAL) != NO_ERR) {
+        Wait(100);
+    }
+    string msg;
+    ReceiveRemoteString(CANAL, true, msg);
 
-    while(Sensor(SENSOR_TOQUE) == 0){}
-
-    Wait(5000);
-    saida_estacao();    // 1 estado - saida da estacao de recarga
-    entrada_estacao();  // 2 estado - entrada na estacao de estoque
-    pegar_objeto();     // 3 estado - pegar um objeto na estacao de estoque
-    saida_estacao();    // 4 estado - saida da estacao de estoque
-    entregar_objeto();  // 5 estado - entregar objeto 
-    entrada_estacao();  // 6 estado - entrada na estacao de recarga
+    // while(Sensor(SENSOR_TOQUE) == 0){}
+    if(msg == "iniciar"){
+        Wait(5000);
+        SendRemoteString(CANAL, 1, "testando")
+        saida_estacao();    // 1 estado - saida da estacao de recarga
+        entrada_estacao();  // 2 estado - entrada na estacao de estoque
+        pegar_objeto();     // 3 estado - pegar um objeto na estacao de estoque
+        saida_estacao();    // 4 estado - saida da estacao de estoque
+        entregar_objeto();  // 5 estado - entregar objeto 
+        entrada_estacao();  // 6 estado - entrada na estacao de recarga
+        SendRemoteString(CANAL, 1, "sair")
+    }
 }
