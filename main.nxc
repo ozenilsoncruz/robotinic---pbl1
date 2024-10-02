@@ -30,12 +30,11 @@
 // Medidas do robô
 #define DIAMETRO_RODA 5.5
 #define DISTANCIA_ENTRE_RODAS 18.5
-#define PI           3.14159265358979323846  /* pi */
 
 
 // Variáveis globais
-int x = 0;
-int y = 0;
+float x = 0;
+float y = 0;
 float angulo = 0;
 
 
@@ -45,14 +44,11 @@ int lerCor() {
     if (valorLuz < 20) {
         return PRETO;
     }
-    else if (valorLuz >= 20 && valorLuz < 40) {
-        return PRATA;
-    }
     else if (valorLuz >= 40 && valorLuz < 60) {
         return BRANCO;
     }
     else if (valorLuz >= 60) {
-        return VERMELHO;
+        return PRATA;
     }
 
     return -1;
@@ -98,13 +94,13 @@ void acionarMotores(float num_voltas, bool frente=true) {
     }
 
     int graus = 360 * num_voltas;
-    
+    bool continuar;
     do {
         int rotacaoMotor = MotorRotationCount(MOTOR_ESQUERDO);
         ClearScreen();
         TextOut(0, 56, NumToStr(rotacaoMotor));
-        Wait(1000);
-        bool continuar = frente ? rotacaoMotor < graus : rotacaoMotor > graus;
+        Wait(100);
+        continuar = frente ? rotacaoMotor < graus : rotacaoMotor > graus;
     } while (continuar);
     Off(MOTOR_DIREITO_ESQUERDO);
 }
@@ -184,11 +180,35 @@ void girarEsquerda() {
 }
 
 
+// Rotina para teste
+void rotinaPrincipal() {
+    while (true) {
+        int cor = lerCor();
+        if (cor == BRANCO) {
+            andarFrente();
+        } else if (cor == PRETO) {
+            andarTras();
+            girarDireita();
+            andarFrente();
+            girarEsquerda();
+        } else if (cor == PRATA) {
+            // TODO: Atualizar estado do robô
+            ClearScreen();
+            TextOut(0, 56, "Chegou no prata!");
+            Wait(5000);
+            break;
+        }
+    }
+}
 
 
 task main() {
     SetSensorLight(SENSOR_COR);
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
+
+    while(Sensor(SENSOR_TOQUE) == 0) {};
+    
+    rotinaPrincipal();
 
 }
