@@ -5,8 +5,8 @@
 #define MOTOR_DIREITO_ESQUERDO OUT_AC
 
 // Definicao dos sensores ativos
-#define SENSOR_COR S1
-#define SENSOR_TOQUE S3
+#define SENSOR_COR S3
+#define SENSOR_TOQUE S1
 #define SENSOR_ULTRASSOM S2
 
 // Canal de comunicação Bluetooth
@@ -41,8 +41,11 @@ float angulo = 0;
 int lerCor() {
     int valorLuz = Sensor(SENSOR_COR);
 
-    if (valorLuz < 20) {
+    if (valorLuz < 40) {
         return PRETO;
+    }
+    else if(valorLuz > 50 && valorLuz < 56){
+         return VERMELHO;
     }
     else if (valorLuz >= 40 && valorLuz < 60) {
         return BRANCO;
@@ -92,11 +95,6 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
         RotateMotor(motor, -VELOCIDADE_MEDIA, graus_motor);
     }
 
-    int rotacaoMotor = MotorRotationCount(motor);
-    ClearScreen();
-    TextOut(0, 56, NumToStr(rotacaoMotor));
-    Wait(100);
-    Off(motor);
 }
 
 
@@ -127,8 +125,7 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 
 
 void acionarMotores(float num_voltas, bool frente=true) {
-   acionarMotor(MOTOR_DIREITO, num_voltas, frente);
-   acionarMotor(MOTOR_ESQUERDO, num_voltas, frente);
+   acionarMotor(MOTOR_DIREITO_ESQUERDO, num_voltas, frente);
 }
 
 
@@ -146,12 +143,14 @@ void girarEmGraus(int graus) {
 
     if (graus > 0) {
         // Girar para a direita
-        acionarMotor(OUT_C, numero_rotacoes, true);  // Esquerda para frente
-        acionarMotor(OUT_A, numero_rotacoes, false); // Direita para trás
+        //acionarMotor(OUT_C, numero_rotacoes, true);  // Esquerda para frente
+        //acionarMotor(OUT_A, numero_rotacoes, false); // Direita para trás
+        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, 75, true, true);
     } else {
         // Girar para a esquerda
-        acionarMotor(OUT_C, numero_rotacoes, false); // Esquerda para trás
-        acionarMotor(OUT_A, numero_rotacoes, true);  // Direita para frente
+        //acionarMotor(OUT_C, numero_rotacoes, false); // Esquerda para trás
+        //acionarMotor(OUT_A, numero_rotacoes, true);  // Direita para frente
+        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, -75, true, true);
     }
 }
 
@@ -171,8 +170,8 @@ void calcularOdometria(){
         angulo += 2 * PI;
     }
 
-    float delta_x = deslocamento_medio * cos(angulo);
-    float delta_y = deslocamento_medio * sin(angulo);
+    float delta_x = deslocamento_medio * Cos(angulo);
+    float delta_y = deslocamento_medio * Sin(angulo);
 
     x += delta_x;
     y += delta_y;
@@ -181,7 +180,6 @@ void calcularOdometria(){
     TextOut(0, 56, "X: " + NumToStr(x));
     TextOut(0, 72, "Y: " + NumToStr(y));
     TextOut(0, 88, "Angulo: " + NumToStr(angulo));
-    Wait(1000);
 }
 
 
@@ -212,12 +210,12 @@ void rotinaPrincipal() {
         int cor = lerCor();
         if (cor == BRANCO) {
             andarFrente();
-        } else if (cor == PRETO) {
+        } if (cor == PRETO) {
             andarTras();
             girarDireita();
             andarFrente();
             girarEsquerda();
-        } else if (cor == PRATA) {
+        } if (cor == PRATA) {
             // TODO: Atualizar estado do robô
             ClearScreen();
             TextOut(0, 56, "Chegou no prata!");
@@ -233,13 +231,16 @@ task main() {
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    while(Sensor(SENSOR_TOQUE) == 0) {};
+    while(Sensor(SENSOR_TOQUE) == 0) {
+        ClearScreen();
+        TextOut(0, 56, "Esperando...");
+    };
     
 
-    andarFrente();
-    // andarTras();
-    // girarDireita();
-    // girarEsquerda();
+    //andarFrente();
+    //andarTras();
+    //girarDireita();
+    //girarEsquerda();
 
-    // rotinaPrincipal();
+    rotinaPrincipal();
 }
