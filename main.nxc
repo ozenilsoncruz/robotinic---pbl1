@@ -5,12 +5,12 @@
 #define MOTOR_DIREITO_ESQUERDO OUT_AC
 
 // Definicao dos sensores ativos
-#define SENSOR_COR S1
-#define SENSOR_TOQUE S3
+#define SENSOR_COR S3
+#define SENSOR_TOQUE S1
 #define SENSOR_ULTRASSOM S2
 
 // Canal de comunicação Bluetooth
-#define CANAL 1 
+#define CANAL 1
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
@@ -19,6 +19,9 @@
 
 // Distancia maxima permitida da parede
 #define DISTANCIA 30
+
+#define DISTANCIA_ENTRE_RODAS 18.5
+#define DIAMETRO_RODAS 5.5
 
 // Cores usadas
 #define PRETO 1
@@ -29,7 +32,8 @@
 bool direcao = false;
 
 int lerCor() {
-    int valorLuz = Sensor(SENSOR_COR);
+    int valorLuz = Sensor(SENSOR_COR); 
+    // TODO: testar SensorRaw e substituir os valores de cores
 
     if (valorLuz < 20) {
         return PRETO;
@@ -48,80 +52,89 @@ int lerCor() {
 }
 
 void rotacionaRobo(int grau_rotacao, bool direcao) {
-    Off(MOTOR_DIREITO_ESQUERDO);
+ 
+    const float circunferenciaRodas = 3.14159 * DIAMETRO_RODAS;
+    const float distanciaPorGrau = circunferenciaRodas / 360.0;
 
-    // 1 grau de giro do robo equivale a aproximadamente 2 graus de rotacao do motor
-    int rotacao = grau_rotacao * 2;
-    if (direcao) { 
-      RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA, rotacao, 100, true, true);
-    } else {
-      RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA, -rotacao, 100, true, true);
+    // Distância total percorrida por uma roda para girar o robô o número de graus desejado (cm)
+    float distanciaTotal = distanciaPorGrau * abs(grau_rotacao);
+
+    // Número de rotações da roda
+    float numeroRotacoes = distanciaTotal / circunferenciaRodas;
+    int rotacaoMotor = numeroRotacoes * 360;
+
+    if (!direcao) {
+        rotacaoMotor = -rotacaoMotor;
     }
-    
-    Wait(1000);
+
+    Off(MOTOR_DIREITO_ESQUERDO);
+    RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA, rotacaoMotor, 100, true, true);
     Off(MOTOR_DIREITO_ESQUERDO);
 }
 
-void qtdGirosRodaEsquerda(int num_voltas, bool frente){
+void qtdGirosRodas(int num_voltas, bool frente=true) {
     Off(MOTOR_DIREITO_ESQUERDO);
-    int rotacaoMotorEsquerdo = MotorRotationCount(MOTOR_ESQUERDO);
-    int rotacaoMotorEsquerdo_aux = MotorRotationCount(MOTOR_ESQUERDO);
 
-    while (rotacaoMotorEsquerdo-rotacaoMotorEsquerdo_aux+(360*num_voltas) >= 360*num_voltas
-            && SensorUS(SENSOR_ULTRASSOM) >= DISTANCIA) {
-        if (frente){
-           OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
-        }else{
-            OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
+    int rotacaoTotal = 360 * num_voltas;
+    if (frente) {
+        OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+    } else {
+        OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+    }
+    ResetRotationCount(MOTOR_DIREITO_ESQUERDO);
+
+    int rotacaoPercorrida = 0;
+    while (true) {
+        rotacaoPercorrida = abs(MotorRotationCount(MOTOR_ESQUERDO));
+        if (rotacaoPercorrida >= rotacaoTotal) {
+            break;
         }
-        rotacaoMotorEsquerdo_aux = MotorRotationCount(MOTOR_ESQUERDO);
     }
     Off(MOTOR_DIREITO_ESQUERDO);
-    
+    // TextOut(1, 56, NumToStr(rotacaoPercorrida));
+    // Wait(10000);
 }
 
 void movimento90graus(bool direcao, int qtd_giros){ // se direcao true ->, se false <-
     rotacionaRobo(90, direcao);
-    qtdGirosRodaEsquerda(qtd_giros, true);
+    qtdGirosRodas(qtd_giros);
     rotacionaRobo(90, !direcao);
 }
 
 void saida_estacao(){
     bool detectou_linha_preta = false;
+    OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA);
 
-    while (true) {
+    while (Sensor(SENSOR_TOQUE) == 0) {
         int cor_detectada = lerCor();
         int distancia = SensorUS(SENSOR_ULTRASSOM);
 
-        if(Sensor(SENSOR_TOQUE) == 1){
-            Off(MOTOR_DIREITO_ESQUERDO);
-            break;
-        }
-        else if (cor_detectada == PRETO){
-            qtdGirosRodaEsquerda(1, false); // recua um pouco da linha preta
+        if (cor_detectada == PRETO){
+            qtdGirosRodas(1, false); // recua um pouco da linha preta
             detectou_linha_preta = true;
             movimento90graus(direcao, 1);
         }
-        else if (cor_detectada == PRATA) {
-            OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
-            break;
-        }
-        else if (distancia >= DISTANCIA && cor_detectada == BRANCO){
-            OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
-        }
-        else if (distancia == DISTANCIA){
-            if (detectou_linha_preta){
-                direcao = !direcao; // inverte a direcao que o robo estava indo
-                movimento90graus(direcao, 1);
-            }else{
-                rotacionaRobo(90, direcao);
-            }
-        }
-        else{
-            Off(MOTOR_DIREITO_ESQUERDO);
-        }
-        Wait(500);
+        // else if (cor_detectada == PRATA) {
+        //     OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MAXIMA);
+        //     break;
+        // }
+        // else if (distancia >= DISTANCIA && cor_detectada == BRANCO){
+        //     OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA);
+        // }
+        // else if (distancia == DISTANCIA){
+        //     if (detectou_linha_preta){
+        //         direcao = !direcao; // inverte a direcao que o robo estava indo
+        //         movimento90graus(direcao, 1);
+        //     }else{
+        //         rotacionaRobo(90, direcao);
+        //     }
+        // }
+        // else{
+        //     OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MINIMA);
+        //     Off(MOTOR_DIREITO_ESQUERDO);
+        // }
     }
+    Off(MOTOR_DIREITO_ESQUERDO);
 }
 
 void entrada_estacao(){}
@@ -136,22 +149,32 @@ task main() {
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    while (BluetoothStatus(CANAL) != NO_ERR) {
-        Wait(100);
-    }
-    string msg;
-    ReceiveRemoteString(CANAL, true, msg);
+    // while (BluetoothStatus(CANAL) != NO_ERR) {
+    //     Wait(100);
+    // }
+    //string msg;
+    // ReceiveRemoteString(CANAL, true, msg);
+    // SendRemoteString(CANAL, 1, "testando");
+    // saida_estacao();    // 1 estado - saida da estacao de recarga
+    // entrada_estacao();  // 2 estado - entrada na estacao de estoque
+    // pegar_objeto();     // 3 estado - pegar um objeto na estacao de estoque
+    // saida_estacao();    // 4 estado - saida da estacao de estoque
+    // entregar_objeto();  // 5 estado - entregar objeto
+    // entrada_estacao();  // 6 estado - entrada na estacao de recarga
+    // SendRemoteString(CANAL, 1, "sair");
 
-    // while(Sensor(SENSOR_TOQUE) == 0){}
-    if(msg == "iniciar"){
-        Wait(5000);
-        SendRemoteString(CANAL, 1, "testando")
-        saida_estacao();    // 1 estado - saida da estacao de recarga
-        entrada_estacao();  // 2 estado - entrada na estacao de estoque
-        pegar_objeto();     // 3 estado - pegar um objeto na estacao de estoque
-        saida_estacao();    // 4 estado - saida da estacao de estoque
-        entregar_objeto();  // 5 estado - entregar objeto 
-        entrada_estacao();  // 6 estado - entrada na estacao de recarga
-        SendRemoteString(CANAL, 1, "sair")
-    }
+    while(Sensor(SENSOR_TOQUE) == 0){}
+
+    // Teste 1 - fazer o robo andar 3 para frente e 1 para tras
+    qtdGirosRodas(3);
+    qtdGirosRodas(1, false);
+
+    // Teste 2 - fazer o robo girar 90 graus para esquerda
+    //rotacionaRobo(90, direcao);
+
+    // Teste 3 - fazer o robo fazer um movimento de 90 graus para esquerda, andar 1 vez, e fazer um movimento de 90 graus para direita
+    //movimento90graus(direcao, 1);
+
+    // Teste 4 - faze o robo fazer o movimento anterior ao detectar uma linha preta
+    //saida_estacao();
 }
