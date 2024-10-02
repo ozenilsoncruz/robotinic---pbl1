@@ -56,53 +56,79 @@ int lerCor() {
 
 
 // Aciona o motor para girar um determinado número de voltas
+// void acionarMotor(int motor, float num_voltas, bool frente=true) {
+//     Off(motor);
+//     ResetRotationCount(motor); 
+    
+//     if (frente) {
+//         OnFwd(motor, VELOCIDADE_MEDIA);
+//     } else {
+//         OnRev(motor, VELOCIDADE_MEDIA);
+//     }
+
+//     int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
+    
+//     do {
+//         int rotacaoMotor = MotorRotationCount(motor);
+//         ClearScreen();
+//         TextOut(0, 56, NumToStr(rotacaoMotor));
+//         Wait(100);  
+//     } while (abs(MotorRotationCount(motor)) < abs(graus_motor));
+    
+//     Off(motor);
+// }
+
+
 void acionarMotor(int motor, float num_voltas, bool frente=true) {
     Off(motor);
     ResetRotationCount(motor); 
     
+    int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
+
     if (frente) {
-        OnFwd(motor, VELOCIDADE_MEDIA);
-    } else {
-        OnRev(motor, VELOCIDADE_MEDIA);
+        RotateMotor(motor, VELOCIDADE_MEDIA, graus_motor);
+    } 
+    else {
+        RotateMotor(motor, -VELOCIDADE_MEDIA, graus_motor);
     }
 
-    int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
-    
-    do {
-        int rotacaoMotor = MotorRotationCount(motor);
-        ClearScreen();
-        TextOut(0, 56, NumToStr(rotacaoMotor));
-        Wait(100);  
-    } while (abs(MotorRotationCount(motor)) < abs(graus_motor));
-    
+    int rotacaoMotor = MotorRotationCount(motor);
+    ClearScreen();
+    TextOut(0, 56, NumToStr(rotacaoMotor));
+    Wait(100);
     Off(motor);
 }
 
 
 
 // Aciona ambos os motores definidos para girar um determinado número de voltas
+// void acionarMotores(float num_voltas, bool frente=true) {
+//     Off(MOTOR_DIREITO_ESQUERDO);
+//     ResetRotationCount(MOTOR_DIREITO_ESQUERDO); 
+
+//     if (frente) {
+//         OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+//     }
+//     else {
+//         OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+//     }
+
+//     int graus = 360 * num_voltas;
+//     bool continuar;
+//     do {
+//         int rotacaoMotor = MotorRotationCount(MOTOR_ESQUERDO);
+//         ClearScreen();
+//         TextOut(0, 56, NumToStr(rotacaoMotor));
+//         Wait(100);
+//         continuar = frente ? rotacaoMotor < graus : rotacaoMotor > graus;
+//     } while (continuar);
+//     Off(MOTOR_DIREITO_ESQUERDO);
+// }
+
+
 void acionarMotores(float num_voltas, bool frente=true) {
-    Off(MOTOR_DIREITO_ESQUERDO);
-    ResetRotationCount(MOTOR_ESQUERDO); 
-    ResetRotationCount(MOTOR_DIREITO); 
-
-    if (frente) {
-        OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
-    }
-    else {
-        OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
-    }
-
-    int graus = 360 * num_voltas;
-    bool continuar;
-    do {
-        int rotacaoMotor = MotorRotationCount(MOTOR_ESQUERDO);
-        ClearScreen();
-        TextOut(0, 56, NumToStr(rotacaoMotor));
-        Wait(100);
-        continuar = frente ? rotacaoMotor < graus : rotacaoMotor > graus;
-    } while (continuar);
-    Off(MOTOR_DIREITO_ESQUERDO);
+   acionarMotor(MOTOR_DIREITO, num_voltas, frente);
+   acionarMotor(MOTOR_ESQUERDO, num_voltas, frente);
 }
 
 
@@ -209,6 +235,11 @@ task main() {
 
     while(Sensor(SENSOR_TOQUE) == 0) {};
     
-    rotinaPrincipal();
 
+    andarFrente();
+    // andarTras();
+    // girarDireita();
+    // girarEsquerda();
+
+    // rotinaPrincipal();
 }
