@@ -14,8 +14,8 @@
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
-#define VELOCIDADE_MEDIA 75
-#define VELOCIDADE_MINIMA 50
+#define VELOCIDADE_MEDIA 50
+#define VELOCIDADE_MINIMA 30
 
 // Distancia maxima permitida da parede
 #define DISTANCIA 30
@@ -124,8 +124,13 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 // }
 
 
-void acionarMotores(float num_voltas, bool frente=true) {
-   acionarMotor(MOTOR_DIREITO_ESQUERDO, num_voltas, frente);
+void acionarMotores(bool frente=true) {
+    if(frente) {
+        OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+    }
+    else {
+        acionarMotor(MOTOR_DIREITO_ESQUERDO, 1, false);
+    }
 }
 
 
@@ -145,12 +150,12 @@ void girarEmGraus(int graus) {
         // Girar para a direita
         //acionarMotor(OUT_C, numero_rotacoes, true);  // Esquerda para frente
         //acionarMotor(OUT_A, numero_rotacoes, false); // Direita para trás
-        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, 75, true, true);
+        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, 55, true, true);
     } else {
         // Girar para a esquerda
         //acionarMotor(OUT_C, numero_rotacoes, false); // Esquerda para trás
         //acionarMotor(OUT_A, numero_rotacoes, true);  // Direita para frente
-        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, -75, true, true);
+        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 360, -55, true, true);
     }
 }
 
@@ -184,12 +189,12 @@ void calcularOdometria(){
 
 
 void andarFrente() {
-    acionarMotores(1);
+    acionarMotores();
     calcularOdometria();
 }
 
 void andarTras() {
-    acionarMotores(1, false);
+    acionarMotores(false);
     calcularOdometria();
 }
 
@@ -210,12 +215,13 @@ void rotinaPrincipal() {
         int cor = lerCor();
         if (cor == BRANCO) {
             andarFrente();
-        } if (cor == PRETO) {
+        } else if (cor == PRETO) {
             andarTras();
-            girarDireita();
-            andarFrente();
             girarEsquerda();
-        } if (cor == PRATA) {
+            andarFrente();
+            Wait(2000);
+            girarDireita();
+        } else if (cor == PRATA) {
             // TODO: Atualizar estado do robô
             ClearScreen();
             TextOut(0, 56, "Chegou no prata!");
