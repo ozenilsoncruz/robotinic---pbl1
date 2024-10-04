@@ -249,20 +249,19 @@ task main() {
     
     ClearScreen();
     TextOut(0, 56, "Bluetooth");
-    while (BluetoothStatus(CANAL) != NO_ERR) {
+    while (BluetoothStatus(CANAL) == NO_ERR) {
         Wait(100);
     }
 
     string msg;
 
     while (true){
-        ReceiveRemoteString(CANAL, true, msg);
-
-        if(msg == 'iniciar'){
+        if (ReceiveRemoteString(CANAL, true, msg) == NO_ERR){
             ClearScreen();
             TextOut(0, 56, msg);
             Wait(10000);
-            SendRemoteString(CANAL, 1, "sair");
+            BluetoothWrite(CANAL, "sair");
+            // SendRemoteString(CANAL, 1, "sair"); // testar com esse
             break;
         }
     }
