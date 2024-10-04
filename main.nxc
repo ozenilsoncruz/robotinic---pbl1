@@ -243,11 +243,29 @@ task main() {
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    while(Sensor(SENSOR_TOQUE) == 0) {
-        ClearScreen();
-        TextOut(0, 56, "Esperando...");
-    };
+    ClearScreen();
+    TextOut(0, 56, "Clique");
+    while(Sensor(SENSOR_TOQUE) == 0) {};
     
+    ClearScreen();
+    TextOut(0, 56, "Bluetooth");
+    while (BluetoothStatus(CANAL) != NO_ERR) {
+        Wait(100);
+    }
+
+    string msg;
+
+    while (true){
+        ReceiveRemoteString(CANAL, true, msg);
+
+        if(msg == 'iniciar'){
+            ClearScreen();
+            TextOut(0, 56, msg);
+            Wait(10000);
+            SendRemoteString(CANAL, 1, "sair");
+            break;
+        }
+    }
 
     //andarFrente();
     //andarTras();

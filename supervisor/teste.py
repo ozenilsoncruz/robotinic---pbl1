@@ -6,7 +6,7 @@ ENDERECO =  "00:16:53:09:70:AA"
 
 def enviar_msg(sock: socket.socket, mensagem: str):
     try:
-        sock.send(mensagem.encode())
+        sock.send(mensagem.encode('ascii'))
         print(f"Mensagem enviada: {mensagem}")
     except Exception as e:
         print(f"Erro ao enviar mensagem: {e}")
@@ -22,7 +22,7 @@ def receber_msgs(sock: socket.socket, mensagem_fim: str, buffer_size: int = 1024
                 if not data:
                     continue
 
-                mensagem = data.decode()
+                mensagem = data.decode('ascii', errors='ignore').strip()
                 print(f"Mensagem recebida: {mensagem}")
 
                 if mensagem.lower() == mensagem_fim:
