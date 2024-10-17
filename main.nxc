@@ -10,7 +10,8 @@
 #define SENSOR_ULTRASSOM S2
 
 // Canal de comunicação Bluetooth
-#define CANAL 1 
+#define MAILBOX_RECIVE 1 
+#define MAILBOX_SEND 2 
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
@@ -227,6 +228,19 @@ task main() {
     TextOut(0, LCD_LINE1, "Clique");
     while(Sensor(SENSOR_TOQUE) == 0) {};
 
-    Precedes(explorar, detectarObstaculo, detectarObjeto, detectarCor);
+    ClearScreen();
+    TextOut(0, LCD_LINE1, "Teste");
+
+    string msg = "";
+    while (msg == ""){
+        ReceiveMessage(MAILBOX_RECIVE, 1, msg);
+        Wait(100);
+    }
+    
+    ClearScreen();
+    TextOut(0, LCD_LINE1, msg);
+    SendMessage(MAILBOX_SEND, "testando 123...");
+
+    // Precedes(explorar, detectarObstaculo, detectarObjeto, detectarCor);
 
 }
