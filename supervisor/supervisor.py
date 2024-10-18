@@ -1,8 +1,8 @@
 from nxt.locator import find, BrickNotFoundError
 from nxt.brick import Brick
 from nxt.error import DirectProtocolError
+from time import sleep
 
-# Define o endereço MAC do NXT (ajuste conforme necessário)
 ENDERECO = "00:16:53:09:70:AA"
 MAILBOX_SEND = 1
 MAILBOX_RECIVE = 2
@@ -17,9 +17,6 @@ def conectar_nxt(endereco: str) -> Brick|None:
                 return nxt_brick
             except BrickNotFoundError as e:
                 sleep(0.2)
-        else:
-            print("Falha ao conectar ao NXT.")
-            return None
     except Exception as e:
         print(f"Erro ao conectar NXT.")
 
@@ -37,18 +34,21 @@ def enviar_msg(brick: Brick, mensagem: str):
 
 
 def receber_msg(brick: Brick) -> str :
-    while True:
-        try:
-            _, msg = brick.message_read(MAILBOX_RECIVE, 0, True)
-            return msg.decode()
-        except DirectProtocolError:
-            pass
-        
+    try:
+        while True:
+            try:
+                _, msg = brick.message_read(MAILBOX_RECIVE, 0, True)
+                return msg.decode()
+            except DirectProtocolError:
+                pass
+    except Exception as e:
+        print("Erro ao receber mensagens.")
+            
 
 def main():
     brick = conectar_nxt(ENDERECO)
     if brick:
-        enviar_msg(brick, "Ozy teste")
+        enviar_msg(brick, "Iniciar")
         print(receber_msg(brick))
         brick.close()
         print("Conexão encerrada.")
