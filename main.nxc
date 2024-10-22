@@ -298,11 +298,44 @@ task detectarCor() {
 
 // Explorar o ambiente em busca do objeto,
 task explorarAmbiente() {
-    StartTask(detectarObstaculo);
     exploracao:
         while (explorar) {
             andarFrente();
-            //calcularOdometria();
+            int valor = SensorUS(SENSOR_ULTRASSOM);
+            if(valor < DISTANCIA_PAREDE){
+                Acquire(explorarMutex);
+                frear();
+                andarFrenteNumeroVezes(0.5);
+                valor = SensorUS(SENSOR_ULTRASSOM);
+                if (Sensor(SENSOR_TOQUE) == 1) { //Parede
+                    ClearScreen();
+                    TextOut(0, LCD_LINE1, "Parede detectada!");
+        
+                    if (girar_Direita) {
+                        girarDireita();
+                    }
+                    else {
+                        girarEsquerda();
+                    }
+                    andarFrenteNumeroVezes(0.5);
+                    if (girar_Direita) {
+                        girarDireita();
+                    }
+                    else {
+                        girarEsquerda();
+                    }
+                    girar_Direita = !girar_Direita;
+                    andarFrente();
+                }
+                else if (valor < DISTANCIA_OBJETO && objetoDetectado == false) {
+                    ClearScreen();
+                    TextOut(0, LCD_LINE1, "Objeto detectado!");
+                    objetoDetectado = true;
+                    andarFrenteUmaVez();
+                    acionarGarra();
+                }
+                Release(explorarMutex);
+            }
         }
     while (!explorar) {
         frear();
@@ -326,6 +359,10 @@ task atualizarEstado() {
                 if (corDetectada == PRATA) {
                     estadoAtual = MOVER_PARA_ESTOQUE;
                 }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                }	
                 ClearScreen();
                 TextOut(0, LCD_LINE1, "Saindo da base");
                 break;
@@ -333,7 +370,17 @@ task atualizarEstado() {
             case MOVER_PARA_ESTOQUE:
                 andarFrente();
                 if (corDetectada == PRATA) {
+                    frear();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
                     estadoAtual = PROCURAR_OBJETO;
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
                 }
                 ClearScreen();
                 TextOut(0, LCD_LINE1, "Entrando no estoque");
@@ -351,6 +398,13 @@ task atualizarEstado() {
                 if (corDetectada == PRATA) {
                     girar180();
                     Wait(5000);
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
                 }
                 break;
         }
