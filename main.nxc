@@ -15,7 +15,7 @@
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
-#define VELOCIDADE_MEDIA 50
+#define VELOCIDADE_MEDIA 20
 #define VELOCIDADE_MINIMA 30
 
 // Distancia maxima permitida da parede
@@ -181,41 +181,66 @@ void girar180() {
 void acionarGarra() {
     acionarMotor(MOTOR_GARRA, 0.25, false);
     ClearScreen();
-    TextOut(0, LCD_LINE1, "Acionar garra");
+    // TextOut(0, LCD_LINE1, "Acionar garra");
 }
 
 void liberarGarra() {
     acionarMotor(MOTOR_GARRA, 0.25);
     Off(MOTOR_GARRA);
     ClearScreen();
-    TextOut(0, LCD_LINE1, "Liberou a garra");
+    // TextOut(0, LCD_LINE1, "Liberou a garra");
+}
+
+string lerCor(int valorLuz) {
+    if (valorLuz < 40) {
+        return "Preto";
+    }
+    else if (valorLuz >= 40 && valorLuz < 60) {
+        return "Branco";
+    }
+    else if (valorLuz >= 60) {
+        return "Prata";
+    }
+    else return "Nao identificado";
+}
+
+task mostrarInformacoes() {
+    while(true) {
+        ClearScreen();
+        int distancia = SensorUS(SENSOR_ULTRASSOM);
+        TextOut(0, LCD_LINE1, "Distancia:" + NumToStr(distancia));
+        int valorLuz = Sensor(SENSOR_COR);
+        TextOut(0, LCD_LINE2, "Cor:" + lerCor(valorLuz));
+        TextOut(0, LCD_LINE3, "Estado:" + NumToStr(estadoAtual));
+        Wait(100);
+    }
 }
 
 
 task seguirLinhaPreta() {
-    bool ajustarParaDireita = true;  
+    bool ajustarParaDireita = true;
     while (true) {
-        
-        if (corDetectada == PRETO) {  
-            andarFrente();  
+
+        if (corDetectada == PRETO) {
+            andarFrente();
         }
         // Se o sensor detecta outra cor (linha perdida)
         else {
-            frear();  
+            frear();
             if (ajustarParaDireita) {
                 // Curva ligeira para a direita
                 OnFwd(MOTOR_DIREITO, VELOCIDADE_MINIMA);
                 OnRev(MOTOR_ESQUERDO, VELOCIDADE_MINIMA);
-                Wait(200);  
+                Wait(200);
             } else {
                 // Curva ligeira para a esquerda
                 OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MINIMA);
                 OnRev(MOTOR_DIREITO, VELOCIDADE_MINIMA);
-                Wait(200);  
+                Wait(200);
             }
             ajustarParaDireita = !ajustarParaDireita;
         }
-        Wait(50);  // Pequeno intervalo para evitar leituras excessivamente rápidas
+        Wait(50);  // Pequeno intervalo para evitar leituras excessivamente r?pidas
     }
 }
 
@@ -231,7 +256,7 @@ task detectarObstaculo() {
             valor = SensorUS(SENSOR_ULTRASSOM);
             if (Sensor(SENSOR_TOQUE) == 1) { //Parede
                 ClearScreen();
-                TextOut(0, LCD_LINE1, "Parede detectada!");
+
                 explorar = false;
                 if (girar_Direita) {
                     girarDireita();
@@ -251,7 +276,6 @@ task detectarObstaculo() {
             }
             else if (valor < DISTANCIA_OBJETO && objetoDetectado == false) {
                 ClearScreen();
-                TextOut(0, LCD_LINE1, "Objeto detectado!");
                 objetoDetectado = true;
                 andarFrenteUmaVez();
                 acionarGarra();
@@ -268,29 +292,15 @@ task detectarCor() {
         if (valorLuz < 40) {
             corDetectada = PRETO;
         }
-        else if(valorLuz >= 50 && valorLuz < 56){
-            corDetectada = VERMELHO;
-        }
-        else if (valorLuz >= 40 && valorLuz < 50) {
+        else if (valorLuz >= 40 && valorLuz < 60) {
             corDetectada = BRANCO;
         }
         else if (valorLuz >= 60) {
             corDetectada = PRATA;
         }
-        ClearScreen();
 
-        if (corDetectada == PRETO) {
-            TextOut(0, LCD_LINE1, "Preto detectado");
-        }
-        else if (corDetectada == VERMELHO) {
-            TextOut(0, LCD_LINE1, "Vermelho detectado");
-        }
-        else if (corDetectada == BRANCO) {
-            TextOut(0, LCD_LINE1, "Branco detectado");
-        }
-        else if (corDetectada == PRATA) {
-            TextOut(0, LCD_LINE1, "Prata detectado");
-        }
+        ClearScreen();
+        TextOut(0, LCD_LINE1, NumToStr(corDetectada));
         Wait(200);
     }
 }
@@ -303,14 +313,11 @@ task explorarAmbiente() {
             andarFrente();
             int valor = SensorUS(SENSOR_ULTRASSOM);
             if(valor < DISTANCIA_PAREDE){
-                Acquire(explorarMutex);
                 frear();
                 andarFrenteNumeroVezes(0.5);
                 valor = SensorUS(SENSOR_ULTRASSOM);
                 if (Sensor(SENSOR_TOQUE) == 1) { //Parede
                     ClearScreen();
-                    TextOut(0, LCD_LINE1, "Parede detectada!");
-        
                     if (girar_Direita) {
                         girarDireita();
                     }
@@ -329,18 +336,15 @@ task explorarAmbiente() {
                 }
                 else if (valor < DISTANCIA_OBJETO && objetoDetectado == false) {
                     ClearScreen();
-                    TextOut(0, LCD_LINE1, "Objeto detectado!");
                     objetoDetectado = true;
                     andarFrenteUmaVez();
                     acionarGarra();
                 }
-                Release(explorarMutex);
             }
         }
     while (!explorar) {
         frear();
         ClearScreen();
-        TextOut(0, LCD_LINE1, "Parado!");
         Wait(100);
     }
     goto exploracao;
@@ -359,12 +363,14 @@ task atualizarEstado() {
                 if (corDetectada == PRATA) {
                     estadoAtual = MOVER_PARA_ESTOQUE;
                 }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
                 else if (corDetectada == PRETO) {
-                    frear();
-                    andarTrasUmaVez();
-                }	
-                ClearScreen();
-                TextOut(0, LCD_LINE1, "Saindo da base");
+                     frear();
+                     andarTrasUmaVez();
+                }
+
                 break;
             // NOTE: Pode ser que ele detecte a cor prata novamente, come?ando a procurar o objeto antes de chegar no estoque
             case MOVER_PARA_ESTOQUE:
@@ -373,7 +379,7 @@ task atualizarEstado() {
                     frear();
                     andarFrenteUmaVez();
                     girarEsquerda();
-                    estadoAtual = PROCURAR_OBJETO;
+                    //estadoAtual = PROCURAR_OBJETO;
                 }
                 else if (corDetectada == PRETO) {
                     frear();
@@ -382,8 +388,6 @@ task atualizarEstado() {
                     andarFrenteUmaVez();
                     girarEsquerda();
                 }
-                ClearScreen();
-                TextOut(0, LCD_LINE1, "Entrando no estoque");
                 break;
 
             case PROCURAR_OBJETO:
@@ -391,8 +395,6 @@ task atualizarEstado() {
                 if (objetoDetectado) {
                     estadoAtual = SAIR_ESTOQUE;
                 }
-                ClearScreen();
-                TextOut(0, LCD_LINE1, "Objeto detectado");
                 break;
             case SAIR_ESTOQUE: //TODO: implementar a partir daqui
                 if (corDetectada == PRATA) {
@@ -422,8 +424,13 @@ task main() {
     while(Sensor(SENSOR_TOQUE) == 0) {};
     Wait(1000);
 
-    Precedes(atualizarEstado, explorarAmbiente, detectarCor);
+
+    Precedes(atualizarEstado, detectarCor, mostrarInformacoes);
+
+    
 }
+
+
 
 
 
