@@ -9,8 +9,8 @@
 #define SENSOR_TOQUE S1
 #define SENSOR_ULTRASSOM S2
 
-// Canal de comunicaÃ§Ã£o Bluetooth
-#define CANAL 1 
+// Canal de comunicação Bluetooth
+#define CANAL 1
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
@@ -27,30 +27,33 @@
 #define VERMELHO 4
 
 
-// Medidas do robÃ´
+// Medidas do robô
 #define DIAMETRO_RODA 7
 #define DISTANCIA_ENTRE_RODAS 20
 
 
-// VariÃ¡veis globais
+// Variáveis globais
 float x = 0;
 float y = 0;
 float angulo = 0;
 
 int corGlobal = 0;
 
+bool pararExplorar = false;
+
 
 void acionarMotor(int motor, float num_voltas, bool frente=true) {
     Off(motor);
-    ResetRotationCount(motor); 
-    
+    ResetRotationCount(motor);
+
     int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
 
     if (frente) {
         RotateMotor(motor, VELOCIDADE_MEDIA, graus_motor);
-    } 
+    }
     else {
         RotateMotor(motor, -VELOCIDADE_MEDIA, graus_motor);
+        
     }
 
 }
@@ -66,22 +69,22 @@ void acionarMotores(bool frente=true) {
 }
 
 
-// // Gira o robÃ´ em um determinado nÃºmero de graus
+// // Gira o robô em um determinado número de graus
 // void girarEmGraus(int graus) {
-//     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;  
-//     float raio_roda = DIAMETRO_RODA / 2.0;  
-    
-//     // DistÃ¢ncia que a roda externa precisa percorrer
+//     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
+//     float raio_roda = DIAMETRO_RODA / 2.0;
+
+//     // Distância que a roda externa precisa percorrer
 //     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
-    
-//     // NÃºmero de rotaÃ§Ãµes que cada roda deve fazer
+
+//     // Número de rotações que cada roda deve fazer
 //     float numero_rotacoes = distancia_percorrida / (2 * PI * raio_roda);
 
 //     if (graus > 0) {
 //         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, true);  // Esquerda para frente
-//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, false); // Direita para trÃ¡s
+//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, false); // Direita para trás
 //     } else {
-//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, false); // Esquerda para trÃ¡s
+//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, false); // Esquerda para trás
 //         acionarMotor(MOTOR_DIREITO, numero_rotacoes, true);  // Direita para frente
 //     }
 // }
@@ -91,16 +94,16 @@ void girarEmGraus(int graus) {
     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
     float raio_roda = DIAMETRO_RODA / 2.0;
 
-    // DistÃ¢ncia que a roda externa precisa percorrer
+    // Distância que a roda externa precisa percorrer
     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
 
-    // NÃºmero de rotaÃ§Ãµes que cada roda deve fazer
+    // Número de rotações que cada roda deve fazer
     float numero_rotacoes = distancia_percorrida / (2 * PI * raio_roda);
 
     // Quantos graus os motores devem girar
     int graus_motor = 360 * numero_rotacoes;
 
-    // Se o grau Ã© positivo, girar para a direita. Se negativo, girar para a esquerda.
+    // Se o grau é positivo, girar para a direita. Se negativo, girar para a esquerda.
     if (graus > 0) {
         // Girar para a direita
         RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, graus_motor, -100, true, true);
@@ -119,7 +122,7 @@ void calcularOdometria(){
 
     angulo += mudanca_angulo;
 
-    // Para projetos de robÃ³tica, Ã© comum modificar esse Ã¢ngulo para que ele esteja sempre entre -pi e +pi.
+    // Para projetos de robótica, é comum modificar esse ângulo para que ele esteja sempre entre -pi e +pi.
     if (angulo > PI) {
         angulo -= 2 * PI;
     } else if (angulo < -PI) {
@@ -168,21 +171,43 @@ void girar180() {
 }
 
 void acionarGarra() {
-    acionarMotor(MOTOR_GARRA, 1);
+     //acionarMotor(MOTOR_GARRA, 0.25, false);
+     OnRev(MOTOR_GARRA, VELOCIDADE_MEDIA);
+     Wait(1000);
+    Off(MOTOR_GARRA);
+    ClearScreen();
+    TextOut(0, LCD_LINE1, "Parou a garra");
 }
 
+void liberarGarra() {
+     acionarMotor(MOTOR_GARRA, 0.25);
+    Off(MOTOR_GARRA);
+    ClearScreen();
+    TextOut(0, LCD_LINE1, "Liberou a garra");
+}
+
+
 task explorar() {
-    while (true) {
+     exploracao:
+    while (!pararExplorar) {
         andarFrente();
-        calcularOdometria();
+        //calcularOdometria();
     }
+    while (pararExplorar) {
+           ClearScreen();
+           TextOut(0, LCD_LINE1, "Parado...");
+           Wait(100);
+    }
+    goto exploracao;
+
 }
 
 task detectarObstaculo() {
     while (true) {
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA && Sensor(SENSOR_TOQUE) == 1) {
+        if ( vbSensor(SENSOR_TOQUE) == 1) {
             ClearScreen();
             TextOut(0, LCD_LINE1, "Parede detectada!");
+            pararExplorar = true;
             girar180();
         }
     }
@@ -190,11 +215,16 @@ task detectarObstaculo() {
 
 task detectarObjeto() {
     while (true) {
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA) {
+        int valor = SensorUS(SENSOR_ULTRASSOM);
+        if (SensorUS(SENSOR_ULTRASSOM) < 10) {
             ClearScreen();
             TextOut(0, LCD_LINE1, "Objeto detectado!");
+            pararExplorar = true;
             andarFrenteUmaVez();
             acionarGarra();
+            andarTrasUmaVez();
+            liberarGarra();
+            pararExplorar = false;
         }
     }
 }
@@ -226,7 +256,17 @@ task main() {
     ClearScreen();
     TextOut(0, LCD_LINE1, "Clique");
     while(Sensor(SENSOR_TOQUE) == 0) {};
+    Wait(1000);
+    //while(true) {
+    //int valor = SensorUS(SENSOR_ULTRASSOM);
+    //ClearScreen();
+    //TextOut(0, LCD_LINE1, NumToStr(valor));
+    //Wait(200);
+    //}
 
-    Precedes(explorar, detectarObstaculo, detectarObjeto, detectarCor);
+    Precedes(explorar, detectarObjeto, detectarObstaculo, detectarCor);
+    //acionarGarra();
+
 
 }
+
