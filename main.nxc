@@ -19,7 +19,8 @@
 #define VELOCIDADE_MINIMA 30
 
 // Distancia maxima permitida da parede
-#define DISTANCIA 30
+#define DISTANCIA_PAREDE 20
+#define DISTANCIA_OBJETO 5
 
 // Cores usadas
 #define PRETO 1
@@ -33,14 +34,33 @@
 #define DISTANCIA_ENTRE_RODAS 20
 
 
+
+enum Estado {
+    SAIDA_BASE, 
+    MOVER_PARA_ESTOQUE, 
+    PROCURAR_OBJETO, 
+    SAIR_ESTOQUE, 
+    MOVER_PARA_ESTACAO_TRABALHO, 
+    SOLTAR_OBJETO, 
+    RETORNAR_BASE 
+};
+
+Estado estadoAtual = SAIDA_BASE;
+
 // Vari�veis globais
 float x = 0;
 float y = 0;
 float angulo = 0;
 
-int corGlobal = 0;
+int corDetectada = 0;
+bool girarDireita = true;
+bool explorar = false;
+bool objetoDetectado = false;
 
-bool pararExplorar = false;
+
+mutex objetoDetectadoMutex;
+mutex explorarMutex;
+
 
 
 void acionarMotor(int motor, float num_voltas, bool frente=true) {
@@ -70,26 +90,6 @@ void acionarMotores(bool frente=true) {
 }
 
 
-// // Gira o rob� em um determinado n�mero de graus
-// void girarEmGraus(int graus) {
-//     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
-//     float raio_roda = DIAMETRO_RODA / 2.0;
-
-//     // Dist�ncia que a roda externa precisa percorrer
-//     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
-
-//     // N�mero de rota��es que cada roda deve fazer
-//     float numero_rotacoes = distancia_percorrida / (2 * PI * raio_roda);
-
-//     if (graus > 0) {
-//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, true);  // Esquerda para frente
-//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, false); // Direita para tr�s
-//     } else {
-//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, false); // Esquerda para tr�s
-//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, true);  // Direita para frente
-//     }
-// }
-
 
 void girarEmGraus(int graus) {
     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
@@ -115,7 +115,7 @@ void girarEmGraus(int graus) {
 }
 
 
-void calcularOdometria(){
+void calcularOdometria() {
     float deslocamento_motor_direito = MotorRotationCount(MOTOR_DIREITO) * PI * DIAMETRO_RODA;
     float deslocamento_motor_esquerdo = MotorRotationCount(MOTOR_ESQUERDO) * PI * DIAMETRO_RODA;
     float deslocamento_medio = (deslocamento_motor_direito + deslocamento_motor_esquerdo) / 2;
@@ -151,12 +151,20 @@ void andarFrenteUmaVez() {
     acionarMotor(MOTOR_DIREITO_ESQUERDO, 1);
 }
 
+void andarFrenteNumeroVezes(int vezes) {
+    acionarMotor(MOTOR_DIREITO_ESQUERDO, vezes);
+}
+
 void andarTras() {
     acionarMotores(false);
 }
 
 void andarTrasUmaVez() {
     acionarMotor(MOTOR_DIREITO_ESQUERDO, 1, false);
+}
+
+void frear() {
+    Off(MOTOR_DIREITO_ESQUERDO);
 }
 
 void girarDireita() {
@@ -172,32 +180,39 @@ void girar180() {
 }
 
 void acionarGarra() {
-     //acionarMotor(MOTOR_GARRA, 0.25, false);
-     OnRev(MOTOR_GARRA, VELOCIDADE_MEDIA);
-     Wait(1000);
-    Off(MOTOR_GARRA);
+    acionarMotor(MOTOR_GARRA, 0.25, false);
     ClearScreen();
-    TextOut(0, LCD_LINE1, "Parou a garra");
+    TextOut(0, LCD_LINE1, "Acionar garra");
 }
 
 void liberarGarra() {
-     acionarMotor(MOTOR_GARRA, 0.25);
+    acionarMotor(MOTOR_GARRA, 0.25);
     Off(MOTOR_GARRA);
     ClearScreen();
     TextOut(0, LCD_LINE1, "Liberou a garra");
 }
 
-
-task explorar() {
-     exploracao:
-    while (!pararExplorar) {
-        andarFrente();
-        //calcularOdometria();
+bool detectarObjeto() {
+    int valor = SensorUS(SENSOR_ULTRASSOM);
+    if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO) {
+        return true;
     }
-    while (pararExplorar) {
-           ClearScreen();
-           TextOut(0, LCD_LINE1, "Parado...");
-           Wait(100);
+    return false;
+}
+
+// Explorar o ambiente em busca do objeto,
+task explorar() {
+    StartTask(detectarObstaculo);
+    exploracao:
+        while (explorar) {
+            andarFrente();
+            //calcularOdometria();
+        }
+    while (!explorar) {
+        frear();
+        ClearScreen();
+        TextOut(0, LCD_LINE1, "Parado!");
+        Wait(100);
     }
     goto exploracao;
 
@@ -205,28 +220,42 @@ task explorar() {
 
 task detectarObstaculo() {
     while (true) {
-        if ( vbSensor(SENSOR_TOQUE) == 1) {
-            ClearScreen();
-            TextOut(0, LCD_LINE1, "Parede detectada!");
-            pararExplorar = true;
-            girar180();
-        }
-    }
-}
-
-task detectarObjeto() {
-    while (true) {
         int valor = SensorUS(SENSOR_ULTRASSOM);
-        if (SensorUS(SENSOR_ULTRASSOM) < 10) {
-            ClearScreen();
-            TextOut(0, LCD_LINE1, "Objeto detectado!");
-            pararExplorar = true;
-            andarFrenteUmaVez();
-            acionarGarra();
-            andarTrasUmaVez();
-            liberarGarra();
-            pararExplorar = false;
+        if(valor < DISTANCIA_PAREDE){ 
+            Acquire(explorarMutex);
+            explorar = false;
+            andarFrenteNumeroVezes(0.5);
+            valor = SensorUS(SENSOR_ULTRASSOM);
+            if (Sensor(SENSOR_TOQUE) == 1) { //Parede
+                ClearScreen();
+                TextOut(0, LCD_LINE1, "Parede detectada!");
+                explorar = false;
+                if (girarDireita) {
+                    girarDireita();
+                }
+                else {
+                    girarEsquerda();
+                }
+                andarFrenteNumeroVezes(0.5);
+                if (girarDireita) {
+                    girarDireita();
+                }
+                else {
+                    girarEsquerda();
+                }
+                girarDireita = !girarDireita;
+                explorar = true;
+            }
+            else if (valor < DISTANCIA_OBJETO && objetoDetectado == false) {
+                ClearScreen();
+                TextOut(0, LCD_LINE1, "Objeto detectado!");
+                objetoDetectado = true;
+                andarFrenteUmaVez();
+                acionarGarra();
+            }
+            Release(explorarMutex);
         }
+        
     }
 }
 
@@ -234,20 +263,100 @@ task detectarCor() {
     while (true) {
         int valorLuz = Sensor(SENSOR_COR);
         if (valorLuz < 40) {
-            corGlobal = PRETO;
+            corDetectada = PRETO;
         }
-        else if(valorLuz > 50 && valorLuz < LCD_LINE1){
-            corGlobal = VERMELHO;
+        else if(valorLuz >= 50 && valorLuz < 56){
+            corDetectada = VERMELHO;
         }
-        else if (valorLuz >= 40 && valorLuz < 60) {
-            corGlobal = BRANCO;
+        else if (valorLuz >= 40 && valorLuz < 50) {
+            corDetectada = BRANCO;
         }
         else if (valorLuz >= 60) {
-            corGlobal = PRATA;
+            corDetectada = PRATA;
         }
+        ClearScreen();
+
+        if (corDetectada == PRETO) {
+            TextOut(0, LCD_LINE1, "Preto detectado");
+        }
+        else if (corDetectada == VERMELHO) {
+            TextOut(0, LCD_LINE1, "Vermelho detectado");
+        }
+        else if (corDetectada == BRANCO) {
+            TextOut(0, LCD_LINE1, "Branco detectado");
+        }
+        else if (corDetectada == PRATA) {
+            TextOut(0, LCD_LINE1, "Prata detectado");
+        }
+        Wait(200); 
     }
 }
 
+
+// Função principal de atualização de estado
+task atualizarEstado() {
+    while (true) {
+        Acquire(explorarMutex);
+        switch (estadoAtual) {
+            case SAIDA_BASE:
+                andarFrente();
+                if (corDetectada == PRATA) {
+                    estadoAtual = MOVER_PARA_ESTOQUE;
+                }
+                ClearScreen();
+                TextOut(0, LCD_LINE1, "Saindo da base");
+                break;
+            // NOTE: Pode ser que ele detecte a cor prata novamente, começando a procurar o objeto antes de chegar no estoque
+            case MOVER_PARA_ESTOQUE:
+                andarFrente();
+                if (corDetectada == PRATA) {
+                    estadoAtual = PROCURAR_OBJETO;
+                }
+                ClearScreen();
+                TextOut(0, LCD_LINE1, "Entrando no estoque");
+                break;
+
+            case PROCURAR_OBJETO:
+                explorar = true;
+                if (objetoDetectado) {
+                    estadoAtual = SAIR_ESTOQUE;
+                }
+                ClearScreen();
+                TextOut(0, LCD_LINE1, "Objeto detectado");
+                break;
+            case SAIR_ESTOQUE:
+                explorar = false;
+                andarFrente();
+                if (detectarPrata()) {
+                    estadoAtual = MOVER_PARA_ESTACAO_TRABALHO;
+                }
+                break; //TODO: a partir daqui, tudo errado
+            case MOVER_PARA_ESTACAO_TRABALHO:
+                andarFrente();
+                if (detectarEstacaoTrabalho()) {
+                    estadoAtual = SOLTAR_OBJETO;
+                }
+                break;
+            case SOLTAR_OBJETO:
+                Off(MOTOR_DIREITO_ESQUERDO);
+                liberarGarra();
+                estadoAtual = RETORNAR_BASE;
+                break;
+
+            case RETORNAR_BASE:
+                girarEsquerda();
+                andarFrente();
+                if (corDetectada == PRATA) {
+                    explorar = false;
+                    Off(MOTOR_DIREITO_ESQUERDO);
+                    TextOut(0, LCD_LINE1, "Missão Completa!");
+                    PlaySound(SOUND_DOUBLE_BEEP);
+                }
+                break;
+        }
+        Release(explorarMutex);
+    }
+}
 
 task main() {
     SetSensorLight(SENSOR_COR);
@@ -258,30 +367,23 @@ task main() {
     TextOut(0, LCD_LINE1, "Clique");
     while(Sensor(SENSOR_TOQUE) == 0) {};
     Wait(1000);
-    //while(true) {
-    //int valor = SensorUS(SENSOR_ULTRASSOM);
-    //ClearScreen();
-    //TextOut(0, LCD_LINE1, NumToStr(valor));
-    //Wait(200);
-    //}
+   
 
-    Precedes(explorar, detectarObjeto, detectarObstaculo, detectarCor);
-    //acionarGarra();
+    Precedes(atualizarEstado, explorar, detectarCor);
 
-    ClearScreen();
-    TextOut(0, LCD_LINE1, "Teste");
+    // ClearScreen();
+    // TextOut(0, LCD_LINE1, "Teste");
 
-    string msg = "";
-    while (msg == ""){
-        ReceiveMessage(MAILBOX_RECIVE, 1, msg);
-        Wait(100);
-    }
+    // string msg = "";
+    // while (msg == ""){
+    //     ReceiveMessage(MAILBOX_RECIVE, 1, msg);
+    //     Wait(100);
+    // }
     
-    ClearScreen();
-    TextOut(0, LCD_LINE1, msg);
-    SendMessage(MAILBOX_SEND, "testando 123...");
+    // ClearScreen();
+    // TextOut(0, LCD_LINE1, msg);
+    // SendMessage(MAILBOX_SEND, "testando 123...");
 
-    // Precedes(explorar, detectarObstaculo, detectarObjeto, detectarCor);
 
 }
 
