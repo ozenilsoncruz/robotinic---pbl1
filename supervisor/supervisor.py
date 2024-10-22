@@ -1,78 +1,57 @@
-import bluetooth
-from nxt.bluesock import BlueSock
+from nxt.locator import find, BrickNotFoundError
+from nxt.brick import Brick
+from nxt.error import DirectProtocolError
+from time import sleep
 
+ENDERECO = "00:16:53:09:70:AA"
+MAILBOX_SEND = 1
+MAILBOX_RECIVE = 2
 
-def procurar_nxts():
-    print("Procurando dispositivos Bluetooth...")
-    dispositivos = bluetooth.discover_devices(duration=8, lookup_names=True, flush_cache=True)
-    
-    nxts = []
-    for ende, nome in dispositivos:
-        if 'NXT' in nome:
-            print(f"Dispositivo NXT encontrado: {nome} - {ende}")
-            nxts.append((nome, ende))
-    return nxts
-
-
-def enviar_msg(endereco, mensagem: str):
+def conectar_nxt(endereco: str) -> Brick|None:
+    """Tenta estabelecer uma conexão com o NXT e retorna o objeto Brick se bem sucedido."""
     try:
-        sock = BlueSock(endereco)
-        brick = sock.connect()
-        
+        while True:
+            try:
+                nxt_brick = find(host=endereco)
+                print("Conectado ao NXT com sucesso!")
+                return nxt_brick
+            except BrickNotFoundError as e:
+                sleep(0.2)
+    except Exception as e:
+        print(f"Erro ao conectar NXT.")
+
+
+def enviar_msg(brick: Brick, mensagem: str):
+    """Envia uma mensagem para o NXT se estiver conectado."""
+    try:
         if brick:
-            sock.send(mensagem.encode()) 
+            brick.message_write(MAILBOX_SEND, mensagem.encode())
+            print("Mensagem enviada.")
         else:
-            print("Falha ao conectar ao NXT.")
-        sock.close()
+            print("NXT não está conectado.")
     except Exception as e:
         print(f"Erro ao enviar mensagem: {e}")
 
 
-def receber_msgs(endereco, buffer_size=1024):
+def receber_msg(brick: Brick) -> str :
     try:
-        sock = BlueSock(endereco)
-        brick = sock.connect()
-
-        if not brick:
-            print("Falha ao conectar ao NXT.")
-            return
-        
-        print("Conectado ao NXT. Aguardando mensagens...")
         while True:
             try:
-                data = sock.recv(buffer_size)
-
-                if not data:
-                    continue
-
-                mensagem = data.decode()
-                print(f"Mensagem recebida: {mensagem}")
-
-                # Condição de saída (pode ser alterada conforme necessário)
-                if mensagem.lower() == "sair":
-                    print("Finalizando conexão...")
-                    break
-
-            except Exception as e:
-                print(f"Erro ao receber mensagem: {e}")
-                break
-
-        sock.close()
-        print("Conexão encerrada.")
+                _, msg = brick.message_read(MAILBOX_RECIVE, 0, True)
+                return msg.decode()
+            except DirectProtocolError:
+                pass
     except Exception as e:
-        print(f"Erro: {e}")
-
+        print("Erro ao receber mensagens.")
+            
 
 def main():
-    nxts = procurar_nxts()
-    mensagem = "iniciar"
-    
-    if nxts:
-        nome, endereco = nxts[0]
-        enviar_msg(endereco, mensagem)
-        receber_msgs(endereco)
-
-
+    brick = conectar_nxt(ENDERECO)
+    if brick:
+        enviar_msg(brick, "Iniciar")
+        print(receber_msg(brick))
+        brick.close()
+        print("Conexão encerrada.")
 
 if __name__ == "__main__":
     main()
