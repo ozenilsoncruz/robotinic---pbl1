@@ -191,12 +191,32 @@ void liberarGarra() {
     TextOut(0, LCD_LINE1, "Liberou a garra");
 }
 
-bool detectarObjeto() {
-    int valor = SensorUS(SENSOR_ULTRASSOM);
-    if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO) {
-        return true;
+
+task seguirLinhaPreta() {
+    bool ajustarParaDireita = true;  
+    while (true) {
+        
+        if (corDetectada == PRETO) {  
+            andarFrente();  
+        }
+        // Se o sensor detecta outra cor (linha perdida)
+        else {
+            frear();  
+            if (ajustarParaDireita) {
+                // Curva ligeira para a direita
+                OnFwd(MOTOR_DIREITO, VELOCIDADE_MINIMA);
+                OnRev(MOTOR_ESQUERDO, VELOCIDADE_MINIMA);
+                Wait(200);  
+            } else {
+                // Curva ligeira para a esquerda
+                OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MINIMA);
+                OnRev(MOTOR_DIREITO, VELOCIDADE_MINIMA);
+                Wait(200);  
+            }
+            ajustarParaDireita = !ajustarParaDireita;
+        }
+        Wait(50);  // Pequeno intervalo para evitar leituras excessivamente rápidas
     }
-    return false;
 }
 
 
