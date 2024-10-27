@@ -7,7 +7,8 @@ ENDERECO = "00:16:53:09:70:AA"
 MAILBOX_SEND = 1
 MAILBOX_RECIVE = 2
 
-def conectar_nxt(endereco: str) -> Brick|None:
+
+def conectar_nxt(endereco: str) -> Brick | None:
     """Tenta estabelecer uma conexão com o NXT e retorna o objeto Brick se bem sucedido."""
     try:
         while True:
@@ -33,7 +34,7 @@ def enviar_msg(brick: Brick, mensagem: str):
         print(f"Erro ao enviar mensagem: {e}")
 
 
-def receber_msg(brick: Brick) -> str :
+def receber_msg(brick: Brick) -> str:
     try:
         while True:
             try:
@@ -43,7 +44,7 @@ def receber_msg(brick: Brick) -> str :
                 pass
     except Exception as e:
         print("Erro ao receber mensagens.")
-            
+
 
 def main():
     brick = conectar_nxt(ENDERECO)
@@ -52,6 +53,7 @@ def main():
         print(receber_msg(brick))
         brick.close()
         print("Conexão encerrada.")
+
 
 if __name__ == "__main__":
     main()
