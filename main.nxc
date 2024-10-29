@@ -9,17 +9,18 @@
 #define SENSOR_TOQUE S1
 #define SENSOR_ULTRASSOM S2
 
-// Canal de comunicação Bluetooth
-#define MAILBOX_RECIVE 1 
-#define MAILBOX_SEND 2 
+// Canal de comunica??o Bluetooth
+#define MAILBOX_RECIVE 1
+#define MAILBOX_SEND 2
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
-#define VELOCIDADE_MEDIA 50
+#define VELOCIDADE_MEDIA 40
 #define VELOCIDADE_MINIMA 30
 
 // Distancia maxima permitida da parede
-#define DISTANCIA 30
+#define DISTANCIA_PAREDE 22
+#define DISTANCIA_OBJETO 10
 
 // Cores usadas
 #define PRETO 1
@@ -28,31 +29,75 @@
 #define VERMELHO 4
 
 
-// Medidas do robô
+// Medidas do rob?
 #define DIAMETRO_RODA 7
 #define DISTANCIA_ENTRE_RODAS 20
 
 
-// Variáveis globais
+enum Estado {
+    SAIR_BASE,
+    MOVER_PARA_ESTOQUE,
+    PROCURAR_OBJETO,
+    SAIR_ESTOQUE,
+    ENTRAR_ESTACAO_TRABALHO,
+    SAIR_ESTACAO_TRABALHO,
+    RETORNAR_BASE
+};
+
+Estado estadoAtual;
+
+// Vari?veis globais
 float x = 0;
 float y = 0;
 float angulo = 0;
 
-int corGlobal = 0;
+int corDetectada = 0;
+bool girar_Direita = true;
+bool explorar = false;
+bool objetoDetectado = false;
+
+float motorEsquerdoCount = 0;
+float motorDireitoCount = 0;
+
+
+mutex motorDireitoEsquerdoMutex;
+
+
+void calcularOdometria() {
+    motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
+    motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
+    float deslocamento_motor_direito = motorDireitoCount * PI * DIAMETRO_RODA;
+    float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * DIAMETRO_RODA;
+    float deslocamento_medio = (deslocamento_motor_direito + deslocamento_motor_esquerdo) / 2;
+    float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / DISTANCIA_ENTRE_RODAS;
+
+    angulo += mudanca_angulo;
+
+    float delta_x = deslocamento_medio * Cos(angulo);
+    float delta_y = deslocamento_medio * Sin(angulo);
+
+    x += delta_x;
+    y += delta_y;
+    ResetRotationCount(MOTOR_DIREITO);
+    ResetRotationCount(MOTOR_ESQUERDO);
+    Wait(100);
+}
+
 
 
 void acionarMotor(int motor, float num_voltas, bool frente=true) {
-    Off(motor);
-    ResetRotationCount(motor); 
-    
+    //ResetRotationCount(motor);
+
     int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
 
     if (frente) {
         RotateMotor(motor, VELOCIDADE_MEDIA, graus_motor);
-    } 
+    }
     else {
         RotateMotor(motor, -VELOCIDADE_MEDIA, graus_motor);
+
     }
+    calcularOdometria();
 
 }
 
@@ -67,41 +112,21 @@ void acionarMotores(bool frente=true) {
 }
 
 
-// // Gira o robô em um determinado número de graus
-// void girarEmGraus(int graus) {
-//     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;  
-//     float raio_roda = DIAMETRO_RODA / 2.0;  
-    
-//     // Distância que a roda externa precisa percorrer
-//     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
-    
-//     // Número de rotações que cada roda deve fazer
-//     float numero_rotacoes = distancia_percorrida / (2 * PI * raio_roda);
-
-//     if (graus > 0) {
-//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, true);  // Esquerda para frente
-//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, false); // Direita para trás
-//     } else {
-//         acionarMotor(MOTOR_ESQUERDO, numero_rotacoes, false); // Esquerda para trás
-//         acionarMotor(MOTOR_DIREITO, numero_rotacoes, true);  // Direita para frente
-//     }
-// }
-
 
 void girarEmGraus(int graus) {
     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
     float raio_roda = DIAMETRO_RODA / 2.0;
 
-    // Distância que a roda externa precisa percorrer
+    // Dist?ncia que a roda externa precisa percorrer
     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
 
-    // Número de rotações que cada roda deve fazer
+    // N?mero de rota??es que cada roda deve fazer
     float numero_rotacoes = distancia_percorrida / (2 * PI * raio_roda);
 
     // Quantos graus os motores devem girar
     int graus_motor = 360 * numero_rotacoes;
 
-    // Se o grau é positivo, girar para a direita. Se negativo, girar para a esquerda.
+    // Se o grau ? positivo, girar para a direita. Se negativo, girar para a esquerda.
     if (graus > 0) {
         // Girar para a direita
         RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, graus_motor, -100, true, true);
@@ -109,34 +134,7 @@ void girarEmGraus(int graus) {
         // Girar para a esquerda
         RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, graus_motor, 100, true, true);
     }
-}
-
-
-void calcularOdometria(){
-    float deslocamento_motor_direito = MotorRotationCount(MOTOR_DIREITO) * PI * DIAMETRO_RODA;
-    float deslocamento_motor_esquerdo = MotorRotationCount(MOTOR_ESQUERDO) * PI * DIAMETRO_RODA;
-    float deslocamento_medio = (deslocamento_motor_direito + deslocamento_motor_esquerdo) / 2;
-    float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / DISTANCIA_ENTRE_RODAS;
-
-    angulo += mudanca_angulo;
-
-    // Para projetos de robótica, é comum modificar esse ângulo para que ele esteja sempre entre -pi e +pi.
-    if (angulo > PI) {
-        angulo -= 2 * PI;
-    } else if (angulo < -PI) {
-        angulo += 2 * PI;
-    }
-
-    float delta_x = deslocamento_medio * Cos(angulo);
-    float delta_y = deslocamento_medio * Sin(angulo);
-
-    x += delta_x;
-    y += delta_y;
-
-    ClearScreen();
-    TextOut(0, LCD_LINE1, "X: " + NumToStr(x));
-    TextOut(0, LCD_LINE2, "Y: " + NumToStr(y));
-    TextOut(0, LCD_LINE3, "Angulo: " + NumToStr(angulo));
+    calcularOdometria();
 }
 
 
@@ -148,20 +146,29 @@ void andarFrenteUmaVez() {
     acionarMotor(MOTOR_DIREITO_ESQUERDO, 1);
 }
 
+void andarFrenteNumeroVezes(int vezes) {
+    acionarMotor(MOTOR_DIREITO_ESQUERDO, vezes);
+}
+
 void andarTras() {
     acionarMotores(false);
 }
 
 void andarTrasUmaVez() {
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, 1, false);
+    acionarMotor(MOTOR_DIREITO_ESQUERDO, 0.5, false);
+}
+
+void frear() {
+    Off(MOTOR_DIREITO_ESQUERDO);
+    calcularOdometria();
 }
 
 void girarDireita() {
-    girarEmGraus(90);
+    girarEmGraus(-90);
 }
 
 void girarEsquerda() {
-    girarEmGraus(-90);
+    girarEmGraus(90);
 }
 
 void girar180() {
@@ -169,78 +176,268 @@ void girar180() {
 }
 
 void acionarGarra() {
-    acionarMotor(MOTOR_GARRA, 1);
+    acionarMotor(MOTOR_GARRA, 0.4, false);
+    Off(MOTOR_GARRA);
 }
 
-task explorar() {
-    while (true) {
-        andarFrente();
-        calcularOdometria();
+void liberarGarra() {
+    acionarMotor(MOTOR_GARRA, 0.25);
+    Off(MOTOR_GARRA);
+}
+
+string lerCor(int cor) {
+    if (cor == 1) {
+        return "Preto";
+    }
+    else if (cor == 2) {
+        return "Prata";
+    }
+    else if (cor == 3) {
+        return "Branco";
+    }
+    else return "Nao identificado";
+}
+
+task mostrarInformacoes() {
+    while(true) {
+        ClearScreen();
+        int distancia = SensorUS(SENSOR_ULTRASSOM);
+        TextOut(0, LCD_LINE1, "Distancia:" + NumToStr(distancia));
+        TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada));
+        TextOut(0, LCD_LINE3, "Estado:" + NumToStr(estadoAtual));
+        TextOut(0, LCD_LINE4, "D" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
+        TextOut(0, LCD_LINE5, "X:" + NumToStr(x));
+        TextOut(0, LCD_LINE6, "Y:" + NumToStr(y));
+        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo));
+        Wait(100);
     }
 }
 
-task detectarObstaculo() {
+
+task seguirLinhaPreta() {
+    bool ajustarParaDireita = true;
     while (true) {
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA && Sensor(SENSOR_TOQUE) == 1) {
-            ClearScreen();
-            TextOut(0, LCD_LINE1, "Parede detectada!");
-            girar180();
+
+        if (corDetectada == PRETO) {
+            andarFrente();
         }
+        // Se o sensor detecta outra cor (linha perdida)
+        else {
+            frear();
+            if (ajustarParaDireita) {
+                // Curva ligeira para a direita
+                girarEmGraus(30);
+            } else {
+                // Curva ligeira para a esquerda
+                girarEmGraus(-30);
+            }
+            ajustarParaDireita = !ajustarParaDireita;
+        }
+        Wait(50);
+    }
+}
+
+task detectarParede() {
+    while (true) {
+        Acquire(motorDireitoEsquerdoMutex);
+        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_PAREDE && Sensor(SENSOR_TOQUE) == 1) {
+            frear();
+            andarTrasUmaVez();
+            girarDireita();
+        }
+        Release(motorDireitoEsquerdoMutex);
     }
 }
 
 task detectarObjeto() {
     while (true) {
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA) {
-            ClearScreen();
-            TextOut(0, LCD_LINE1, "Objeto detectado!");
+        Acquire(motorDireitoEsquerdoMutex);
+        int valor = SensorUS(SENSOR_ULTRASSOM);
+        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO) {
+            frear();
             andarFrenteUmaVez();
             acionarGarra();
         }
+        Release(motorDireitoEsquerdoMutex);
     }
 }
+
 
 task detectarCor() {
     while (true) {
         int valorLuz = Sensor(SENSOR_COR);
         if (valorLuz < 40) {
-            corGlobal = PRETO;
-        }
-        else if(valorLuz > 50 && valorLuz < LCD_LINE1){
-            corGlobal = VERMELHO;
+            corDetectada = PRETO;
         }
         else if (valorLuz >= 40 && valorLuz < 60) {
-            corGlobal = BRANCO;
+            corDetectada = BRANCO;
         }
         else if (valorLuz >= 60) {
-            corGlobal = PRATA;
+            corDetectada = PRATA;
         }
+        Wait(100);
     }
 }
 
+
+// Fun??o principal de atualiza??o de estado
+task atualizarEstado() {
+    estadoAtual = SAIR_BASE;
+    while (true) {
+        Acquire(motorDireitoEsquerdoMutex);
+        switch (estadoAtual) {
+            case SAIR_BASE: //Estado OK!
+                if (corDetectada == PRATA) {
+                    frear();
+                    andarFrente();
+                    Wait(1000);
+                    estadoAtual = MOVER_PARA_ESTOQUE;
+                }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                }
+                break;
+            // // NOTE: Pode ser que ele detecte a cor prata novamente, come?ando a procurar o objeto antes de chegar no estoque
+            case MOVER_PARA_ESTOQUE:
+                if (corDetectada == PRATA) {
+                    frear();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                    estadoAtual = PROCURAR_OBJETO;
+                    andarFrente();
+                }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                }
+                break;
+            case PROCURAR_OBJETO:
+                if (objetoDetectado) {
+                    estadoAtual = SAIR_ESTOQUE;
+                    break;
+                }
+                if(corDetectada == PRATA || corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girar180();
+                }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                break;
+            // case SAIR_ESTOQUE:
+            //     if (corDetectada == PRATA) {
+            //         frear();
+            //         andarFrenteUmaVez();
+            //         girarDireita();
+            //         estadoAtual = ENTRAR_ESTACAO_TRABALHO,;
+            //         andarFrente();
+            //     }
+            //     else if(corDetectada == BRANCO) {
+            //         andarFrente();
+            //     }
+            //     else if (corDetectada == PRETO) {
+            //         frear();
+            //         andarTrasUmaVez();
+            //         girarDireita();
+            //         andarFrenteUmaVez();
+            //         girarEsquerda();
+            //     }
+            //     break;
+            // case ENTRAR_ESTACAO_TRABALHO:
+            //     if (corDetectada == PRATA) {
+            //         frear();
+            //         andarFrenteUmaVez();
+            //         liberarGarra();
+            //         girar180();
+            //         estadoAtual = SAIR_ESTACAO_TRABALHO;
+            //         break;
+            //     }
+            //     if(corDetectada == BRANCO) {
+            //         andarFrente();
+            //     }
+            //     else if (corDetectada == PRETO) {
+            //         // Nesse caso, seria melhor fazer ele seguir a linha preta, at? achar a prata
+            //         frear();
+            //         andarTrasUmaVez();
+            //         girarDireita();
+            //         andarFrenteUmaVez();
+            //         girarEsquerda();
+            //     }
+            //     break;
+            // case SAIR_ESTACAO_TRABALHO:
+            //     if (corDetectada == PRATA) {
+            //         //N?o d? s? para fazer ele andar tras uma vez, pois por conta do erro,pode ser que ele n?o esteja alinhado.
+            //         frear();
+            //         andarFrenteUmaVez();
+            //         girarEsquerda(); // depende de qual esta??o ?, tem que criar uma l?gica para saber para onde virar, ou distinguir a entrada da base da entrada do dep?sito, ou fazer ele seguir a linha preta at? achar a prata
+            //         estadoAtual = RETORNAR_BASE;
+            //         andarFrente();
+            //     }
+            //     else if(corDetectada == BRANCO) {
+            //         andarFrente();
+            //     }
+            //     else if (corDetectada == PRETO) {
+            //         frear();
+            //         andarTrasUmaVez();
+            //         girarDireita();
+            //     }
+            //     break;
+        }
+        Release(motorDireitoEsquerdoMutex);
+        Wait(100);
+    }
+}
 
 task main() {
     SetSensorLight(SENSOR_COR);
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    ClearScreen();
-    TextOut(0, LCD_LINE1, "Clique");
-    while(Sensor(SENSOR_TOQUE) == 0) {};
+    // SendMessage(MAILBOX_SEND, "Iniciando rob?");
 
-    ClearScreen();
-    TextOut(0, LCD_LINE1, "Teste");
+    // string msg;
+    // while(true) {
+    //     ReceiveMessage(MAILBOX_RECIVE, true, msg);
+    //     if (msg == "iniciar") {
+    //         ClearScreen();
+    //         TextOut(0, LCD_LINE1, msg);
+    //         break;
+    //     }
+    // }
 
-    string msg = "";
-    while (msg == ""){
-        ReceiveMessage(MAILBOX_RECIVE, 1, msg);
-        Wait(100);
+    while(Sensor(SENSOR_TOQUE) != 1) {
+
     }
-    
-    ClearScreen();
-    TextOut(0, LCD_LINE1, msg);
-    SendMessage(MAILBOX_SEND, "testando 123...");
 
-    // Precedes(explorar, detectarObstaculo, detectarObjeto, detectarCor);
+    Precedes(atualizarEstado, detectarCor, detectarObjeto, detectarParede, mostrarInformacoes);
+
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
