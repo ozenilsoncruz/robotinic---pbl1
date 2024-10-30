@@ -40,6 +40,7 @@ enum Estado {
     PROCURAR_OBJETO,
     SAIR_ESTOQUE,
     ENTRAR_ESTACAO_TRABALHO,
+    ESTACAO_TRABALHO,
     SAIR_ESTACAO_TRABALHO,
     RETORNAR_BASE
 };
@@ -54,7 +55,7 @@ float angulo = 0;
 int corDetectada = 0;
 bool girar_Direita = true;
 bool procurarObjeto = false;
-bool objetoDetectado = false;
+bool objetoAdquirido = false;
 
 float motorEsquerdoCount = 0;
 float motorDireitoCount = 0;
@@ -80,7 +81,6 @@ void calcularOdometria() {
     y += delta_y;
     ResetRotationCount(MOTOR_DIREITO);
     ResetRotationCount(MOTOR_ESQUERDO);
-    Wait(100);
 }
 
 
@@ -104,6 +104,7 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 
 void acionarMotores(bool frente=true) {
     if(frente) {
+        // TODO: testar se o robô caminha reto
         OnFwd(MOTOR_DIREITO, VELOCIDADE_MEDIA - 2);
         OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MEDIA);
 
@@ -182,14 +183,25 @@ void girar180() {
 }
 
 void acionarGarra() {
-    OnRev(MOTOR_GARRA, VELOCIDADE_MEDIA);
-    Wait(1000);
+    acionarMotor(MOTOR_GARRA, 0.1, false);
     Off(MOTOR_GARRA);
 }
 
 void liberarGarra() {
-    acionarMotor(MOTOR_GARRA, 0.25);
+    acionarMotor(MOTOR_GARRA, 0.1);
     Off(MOTOR_GARRA);
+    objetoAdquirido = false;
+}
+
+
+void pegarObjeto() {
+    int valor = SensorUS(SENSOR_ULTRASSOM);
+        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO && Sensor(SENSOR_TOQUE) == 0) {
+            frear();
+            andarFrenteNumeroVezes(0.8);
+            acionarGarra();
+            objetoAdquirido = true;
+        }
 }
 
 string lerCor(int cor) {
@@ -260,14 +272,15 @@ task detectarParede() {
 
 task explorar() {
     while (true) {
-        if(procurarObjeto && !objetoDetectado) {
+        Acquire(motorDireitoEsquerdoMutex);
+        if(procurarObjeto && !objetoAdquirido) {
             andarFrenteUmaVez();
-            // girarEmGraus(30);
-            Wait(500);
-            // girarEmGraus(-30);
-            andarFrenteUmaVez();
+            pegarObjeto();
+            girarEmGraus(45);
+            pegarObjeto();
+            girarEmGraus(-45);
         }
-
+        Release(motorDireitoEsquerdoMutex);
     }
 }
 
@@ -280,7 +293,7 @@ task detectarObjeto() {
                 frear();
                 andarFrenteNumeroVezes(0.8);
                 acionarGarra();
-                objetoDetectado = true;
+                objetoAdquirido = true;
             }
             Release(motorDireitoEsquerdoMutex);
         }
@@ -289,6 +302,8 @@ task detectarObjeto() {
 
 
 task detectarCor() {
+    // TODO: Implementar lógica para detectar a cor vermelha
+    // SetSensorLight(SENSOR_COR, false);
     while (true) {
         int valorLuz = Sensor(SENSOR_COR);
         if (valorLuz < 40) {
@@ -329,7 +344,6 @@ task atualizarEstado() {
             //         girarEsquerda();
             //     }
             //     break;
-            // NOTE: Pode ser que ele detecte a cor prata novamente, come?ando a procurar o objeto antes de chegar no estoque
             case MOVER_PARA_ESTOQUE:
                 if (corDetectada == PRATA) {
                     frear();
@@ -349,11 +363,13 @@ task atualizarEstado() {
                 break;
             case PROCURAR_OBJETO:
                 procurarObjeto = true;
-                if (objetoDetectado) {
+                if (objetoAdquirido) {
+                    procurarObjeto = false;
+                    andarFrente()
                     // estadoAtual = SAIR_ESTOQUE;
                     break;
                 }
-                if(corDetectada == PRATA || corDetectada == PRETO) {
+                else if(corDetectada == PRATA || corDetectada == PRETO) {
                     frear();
                     andarTrasUmaVez();
                     girar180();
@@ -366,7 +382,7 @@ task atualizarEstado() {
             //     if (corDetectada == PRATA) {
             //         frear();
             //         andarFrenteUmaVez();
-            //         girarDireita();
+            //         girarEsquerda();
             //         estadoAtual = ENTRAR_ESTACAO_TRABALHO,;
             //         andarFrente();
             //     }
@@ -381,46 +397,73 @@ task atualizarEstado() {
             //         girarEsquerda();
             //     }
             //     break;
-            // case ENTRAR_ESTACAO_TRABALHO:
-            //     if (corDetectada == PRATA) {
+
+        //     case ENTRAR_ESTACAO_TRABALHO:
+        //         if (corDetectada == PRATA) {
+        //             andarFrente();
+        //             estadoAtual = ESTACAO_TRABALHO;
+        //             break;
+        //         }
+        //         if(corDetectada == BRANCO) {
+        //             andarFrente();
+        //         }
+        //         else if (corDetectada == PRETO) {
+        //             frear();
+        //             andarTrasUmaVez();
+        //             girarDireita();
+        //             andarFrenteUmaVez();
+        //             girarEsquerda();
+        //             andarFrenteUmaVez();
+        //             girarEsquerda();
+        //         }
+        //         break;
+            // case: ESTACAO_TRABALHO:
+            //     SetSensorLight(SENSOR_COR, false);
+            //     if (corDetectada == VERMELHO) {
             //         frear();
-            //         andarFrenteUmaVez();
-            //         liberarGarra();
             //         girar180();
+            //         andarFrente();
             //         estadoAtual = SAIR_ESTACAO_TRABALHO;
+            //         SetSensorLight(SENSOR_COR, true);
             //         break;
             //     }
             //     if(corDetectada == BRANCO) {
             //         andarFrente();
             //     }
             //     else if (corDetectada == PRETO) {
-            //         // Nesse caso, seria melhor fazer ele seguir a linha preta, at? achar a prata
             //         frear();
             //         andarTrasUmaVez();
-            //         girarDireita();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
+            //         liberarGarra();
+            //         girar180();
+            //         andarFrente();
+            //         estadoAtual = SAIR_ESTACAO_TRABALHO;
+            //         SetSensorLight(SENSOR_COR, true);
             //     }
             //     break;
-            // case SAIR_ESTACAO_TRABALHO:
-            //     if (corDetectada == PRATA) {
-            //         //N?o d? s? para fazer ele andar tras uma vez, pois por conta do erro,pode ser que ele n?o esteja alinhado.
-            //         frear();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda(); // depende de qual esta??o ?, tem que criar uma l?gica para saber para onde virar, ou distinguir a entrada da base da entrada do dep?sito, ou fazer ele seguir a linha preta at? achar a prata
-            //         estadoAtual = RETORNAR_BASE;
-            //         andarFrente();
-            //     }
-            //     else if(corDetectada == BRANCO) {
-            //         andarFrente();
-            //     }
-            //     else if (corDetectada == PRETO) {
-            //         frear();
-            //         andarTrasUmaVez();
-            //         girarDireita();
-            //     }
-            //     break;
-        }
+        //     case SAIR_ESTACAO_TRABALHO:
+        //         if (corDetectada == PRATA) {
+        //             if(objetoAdquirido) {
+        //                 frear();
+        //                 andarFrenteUmaVez();
+        //                 girarEsquerda();
+        //                 estadoAtual = RETORNAR_BASE;
+        //                 andarFrente();
+        //             }
+        //             else {
+        //                 andarFrente();
+        //                 estadoAtual = ENTRAR_ESTACAO_TRABALHO;
+        //             }
+        //         }
+        //         else if(corDetectada == BRANCO) {
+        //             andarFrente();
+        //         }
+        //         else if (corDetectada == PRETO) {
+        //             frear();
+        //             andarTrasUmaVez();
+        //             girarDireita();
+        //         }
+        //         break;
+        // }
         Release(motorDireitoEsquerdoMutex);
         Wait(100);
     }
@@ -444,7 +487,7 @@ task main() {
     // }
 
    // liberarGarra();
-    Precedes(atualizarEstado, detectarCor, detectarParede, detectarObjeto, mostrarInformacoes);
+    Precedes(atualizarEstado, detectarCor, detectarParede, explorar, mostrarInformacoes);
 
 
 
