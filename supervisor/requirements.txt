@@ -1,2 +1,4 @@
-pybluez 
+fastapi 
+uvicorn 
+websockets 
 nxt-python
