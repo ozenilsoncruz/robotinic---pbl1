@@ -53,7 +53,7 @@ float angulo = 0;
 
 int corDetectada = 0;
 bool girar_Direita = true;
-bool explorar = false;
+bool procurarObjeto = false;
 bool objetoDetectado = false;
 
 float motorEsquerdoCount = 0;
@@ -104,7 +104,9 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 
 void acionarMotores(bool frente=true) {
     if(frente) {
-        OnFwd(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
+        OnFwd(MOTOR_DIREITO, VELOCIDADE_MEDIA - 2);
+        OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MEDIA);
+
     }
     else {
         OnRev(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA);
@@ -158,6 +160,10 @@ void andarTrasUmaVez() {
     acionarMotor(MOTOR_DIREITO_ESQUERDO, 0.5, false);
 }
 
+void andarTrasNumeroVezes(int vezes) {
+    acionarMotor(MOTOR_DIREITO_ESQUERDO, vezes, false);
+}
+
 void frear() {
     Off(MOTOR_DIREITO_ESQUERDO);
     calcularOdometria();
@@ -176,7 +182,8 @@ void girar180() {
 }
 
 void acionarGarra() {
-    acionarMotor(MOTOR_GARRA, 0.4, false);
+    OnRev(MOTOR_GARRA, VELOCIDADE_MEDIA);
+    Wait(1000);
     Off(MOTOR_GARRA);
 }
 
@@ -202,8 +209,9 @@ task mostrarInformacoes() {
     while(true) {
         ClearScreen();
         int distancia = SensorUS(SENSOR_ULTRASSOM);
+        int valorLuz = Sensor(SENSOR_COR);
         TextOut(0, LCD_LINE1, "Distancia:" + NumToStr(distancia));
-        TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada));
+        TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
         TextOut(0, LCD_LINE3, "Estado:" + NumToStr(estadoAtual));
         TextOut(0, LCD_LINE4, "D" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
         TextOut(0, LCD_LINE5, "X:" + NumToStr(x));
@@ -240,7 +248,7 @@ task seguirLinhaPreta() {
 task detectarParede() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_PAREDE && Sensor(SENSOR_TOQUE) == 1) {
+        if (Sensor(SENSOR_TOQUE) == 1) {
             frear();
             andarTrasUmaVez();
             girarDireita();
@@ -249,16 +257,33 @@ task detectarParede() {
     }
 }
 
+
+task explorar() {
+    while (true) {
+        if(procurarObjeto && !objetoDetectado) {
+            andarFrenteUmaVez();
+            // girarEmGraus(30);
+            Wait(500);
+            // girarEmGraus(-30);
+            andarFrenteUmaVez();
+        }
+
+    }
+}
+
 task detectarObjeto() {
     while (true) {
-        Acquire(motorDireitoEsquerdoMutex);
-        int valor = SensorUS(SENSOR_ULTRASSOM);
-        if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO) {
-            frear();
-            andarFrenteUmaVez();
-            acionarGarra();
+        if(procurarObjeto) {
+            Acquire(motorDireitoEsquerdoMutex);
+            int valor = SensorUS(SENSOR_ULTRASSOM);
+            if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO && Sensor(SENSOR_TOQUE) == 0) {
+                frear();
+                andarFrenteNumeroVezes(0.8);
+                acionarGarra();
+                objetoDetectado = true;
+            }
+            Release(motorDireitoEsquerdoMutex);
         }
-        Release(motorDireitoEsquerdoMutex);
     }
 }
 
@@ -272,7 +297,7 @@ task detectarCor() {
         else if (valorLuz >= 40 && valorLuz < 60) {
             corDetectada = BRANCO;
         }
-        else if (valorLuz >= 60) {
+        else if (valorLuz >= 65) {
             corDetectada = PRATA;
         }
         Wait(100);
@@ -282,36 +307,34 @@ task detectarCor() {
 
 // Fun??o principal de atualiza??o de estado
 task atualizarEstado() {
-    estadoAtual = SAIR_BASE;
+    estadoAtual = MOVER_PARA_ESTOQUE;
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
         switch (estadoAtual) {
-            case SAIR_BASE: //Estado OK!
-                if (corDetectada == PRATA) {
-                    frear();
-                    andarFrente();
-                    Wait(1000);
-                    estadoAtual = MOVER_PARA_ESTOQUE;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarTrasUmaVez();
-                    girarDireita();
-                    andarFrenteUmaVez();
-                    girarEsquerda();
-                }
-                break;
-            // // NOTE: Pode ser que ele detecte a cor prata novamente, come?ando a procurar o objeto antes de chegar no estoque
+            // case SAIR_BASE: //Estado OK!
+            //     if (corDetectada == PRATA) {
+            //         frear();
+            //         andarFrente();
+            //         Wait(1000);
+            //         estadoAtual = MOVER_PARA_ESTOQUE;
+            //     }
+            //     else if(corDetectada == BRANCO) {
+            //         andarFrente();
+            //     }
+            //     else if (corDetectada == PRETO) {
+            //         frear();
+            //         andarTrasUmaVez();
+            //         girarDireita();
+            //         andarFrenteUmaVez();
+            //         girarEsquerda();
+            //     }
+            //     break;
+            // NOTE: Pode ser que ele detecte a cor prata novamente, come?ando a procurar o objeto antes de chegar no estoque
             case MOVER_PARA_ESTOQUE:
                 if (corDetectada == PRATA) {
                     frear();
                     andarFrenteUmaVez();
-                    girarEsquerda();
                     estadoAtual = PROCURAR_OBJETO;
-                    andarFrente();
                 }
                 else if(corDetectada == BRANCO) {
                     andarFrente();
@@ -325,8 +348,9 @@ task atualizarEstado() {
                 }
                 break;
             case PROCURAR_OBJETO:
+                procurarObjeto = true;
                 if (objetoDetectado) {
-                    estadoAtual = SAIR_ESTOQUE;
+                    // estadoAtual = SAIR_ESTOQUE;
                     break;
                 }
                 if(corDetectada == PRATA || corDetectada == PRETO) {
@@ -419,14 +443,15 @@ task main() {
     //     }
     // }
 
-    while(Sensor(SENSOR_TOQUE) != 1) {
+   // liberarGarra();
+    Precedes(atualizarEstado, detectarCor, detectarParede, detectarObjeto, mostrarInformacoes);
 
-    }
-
-    Precedes(atualizarEstado, detectarCor, detectarObjeto, detectarParede, mostrarInformacoes);
 
 
 }
+
+
+
 
 
 
