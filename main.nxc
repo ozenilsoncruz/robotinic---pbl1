@@ -67,10 +67,10 @@ mutex motorDireitoEsquerdoMutex;
 void calcularOdometria() {
     motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
     motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
-    float deslocamento_motor_direito = motorDireitoCount * PI * DIAMETRO_RODA;
-    float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * DIAMETRO_RODA;
+    float deslocamento_motor_direito = motorDireitoCount * PI * (DIAMETRO_RODA - 1.5);
+    float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * (DIAMETRO_RODA - 1.5);
     float deslocamento_medio = (deslocamento_motor_direito + deslocamento_motor_esquerdo) / 2;
-    float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / DISTANCIA_ENTRE_RODAS;
+    float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / (DISTANCIA_ENTRE_RODAS);
 
     angulo += mudanca_angulo;
 
@@ -104,7 +104,7 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 
 void acionarMotores(bool frente=true) {
     if(frente) {
-        // TODO: testar se o robô caminha reto
+        // TODO: testar se o rob? caminha reto
         OnFwd(MOTOR_DIREITO, VELOCIDADE_MEDIA - 2);
         OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MEDIA);
 
@@ -118,7 +118,7 @@ void acionarMotores(bool frente=true) {
 
 void girarEmGraus(int graus) {
     float distancia_entre_rodas = DISTANCIA_ENTRE_RODAS;
-    float raio_roda = DIAMETRO_RODA / 2.0;
+    float raio_roda = (DIAMETRO_RODA )/ 2.0;
 
     // Dist?ncia que a roda externa precisa percorrer
     float distancia_percorrida = (distancia_entre_rodas * PI * abs(graus)) / 360.0;
@@ -228,7 +228,7 @@ task mostrarInformacoes() {
         TextOut(0, LCD_LINE4, "D" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
         TextOut(0, LCD_LINE5, "X:" + NumToStr(x));
         TextOut(0, LCD_LINE6, "Y:" + NumToStr(y));
-        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo));
+        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo * 57.2958));
         Wait(100);
     }
 }
@@ -302,7 +302,7 @@ task detectarObjeto() {
 
 
 task detectarCor() {
-    // TODO: Implementar lógica para detectar a cor vermelha
+    // TODO: Implementar l?gica para detectar a cor vermelha
     // SetSensorLight(SENSOR_COR, false);
     while (true) {
         int valorLuz = Sensor(SENSOR_COR);
@@ -347,6 +347,8 @@ task atualizarEstado() {
             case MOVER_PARA_ESTOQUE:
                 if (corDetectada == PRATA) {
                     frear();
+                    andarTrasUmaVez();
+                    girarDireita();
                     andarFrenteUmaVez();
                     estadoAtual = PROCURAR_OBJETO;
                 }
@@ -365,7 +367,7 @@ task atualizarEstado() {
                 procurarObjeto = true;
                 if (objetoAdquirido) {
                     procurarObjeto = false;
-                    andarFrente()
+                    andarFrente();
                     // estadoAtual = SAIR_ESTOQUE;
                     break;
                 }
@@ -463,7 +465,7 @@ task atualizarEstado() {
         //             girarDireita();
         //         }
         //         break;
-        // }
+        }
         Release(motorDireitoEsquerdoMutex);
         Wait(100);
     }
@@ -487,11 +489,15 @@ task main() {
     // }
 
    // liberarGarra();
-    Precedes(atualizarEstado, detectarCor, detectarParede, explorar, mostrarInformacoes);
+    //girarDireita();
+    andarFrenteUmaVez();
+    Precedes(mostrarInformacoes);
 
 
 
 }
+
+
 
 
 
