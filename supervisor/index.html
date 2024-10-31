@@ -5,20 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot Position Tracking</title>
     <style>
-        .divHouse{
+        .divHouse {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 20px;
         }
         .warehouse {
             position: relative;
             width: 816px;
-            height: 540px; 
+            height: 540px;
             border: 1px solid black;
             display: grid;
             grid-template-columns: 1fr 3fr 1fr;
             background-color: white;
-            
         }
         .section {
             border-right: 1px solid black;
@@ -31,13 +32,19 @@
             border-right: none;
         }
         #robot {
-            width: 20px;
-            height: 20px;
+            width: 60px;
+            height: 60px;
             background-color: blue;
             position: absolute;
             top: 0;
             left: 0;
-            border-radius: 5px;
+            border-radius: 20%;
+            cursor: grab;
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
     </style>
 </head>
@@ -49,27 +56,71 @@
             <div class="section">Estoque</div>
             <div id="robot"></div>
         </div>
+
+        <div class="control-panel">
+            <button id="start-btn">Iniciar</button>
+        </div>
     </div>
-    
 
     <script>
         let robot = document.getElementById("robot");
-        
+        let socket;
+        let isDragging = false;
+        let isStarted = false;
+        const warehouse = document.querySelector('.warehouse');
+
         function updatePosition(x, y) {
-            robot.style.left = `${x*3}px`;
-            robot.style.top = `${y*3}px`;
+            robot.style.left = `${x * 3 - robot.offsetWidth / 2}px`;
+            robot.style.top = `${y * 3 - robot.offsetHeight / 2}px`;
         }
+        robot.addEventListener('mousedown', (event) => {
+            if (isStarted) return;
+            isDragging = true;
+            robot.style.cursor = 'grabbing';
+        });
 
-        let socket = new WebSocket("ws://localhost:8000/ws/position");
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
 
-        socket.onmessage = function(event) {
-            let data = JSON.parse(event.data);
-            updatePosition(data.x, data.y);
-        };
-        
-        socket.onclose = function(event) {
-            console.log("WebSocket connection closed");
-        };
+            const rect = warehouse.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+
+            x = Math.max(robot.offsetWidth / 2, Math.min(x, rect.width - robot.offsetWidth / 2));
+            y = Math.max(robot.offsetHeight / 2, Math.min(y, rect.height - robot.offsetHeight / 2));
+
+            updatePosition(x / 3, y / 3);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                robot.style.cursor = 'grab';
+            }
+        });
+
+        document.getElementById("start-btn").addEventListener("click", () => {
+            if (isStarted) return;
+
+            const x = parseFloat(robot.style.left) / 3 + robot.offsetWidth / 2 / 3;
+            const y = parseFloat(robot.style.top) / 3 + robot.offsetHeight / 2 / 3;
+
+            console.log(`Posição inicial: X=${x}, Y=${y}`);
+            
+            socket = new WebSocket("ws://localhost:8000/ws/position");
+
+            socket.onmessage = function(event) {
+                let data = JSON.parse(event.data);
+                updatePosition(data.x, data.y);
+            };
+
+            socket.onclose = function(event) {
+                console.log("Conexão WebSocket encerrada");
+            };
+
+            isStarted = true;
+            robot.style.cursor = 'default';
+        });
     </script>
 </body>
 </html>
