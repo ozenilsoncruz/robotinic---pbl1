@@ -73,6 +73,10 @@
             robot.style.left = `${x * 3 - robot.offsetWidth / 2}px`;
             robot.style.top = `${y * 3 - robot.offsetHeight / 2}px`;
         }
+        function updatePosition2(x, y) {
+            robot.style.left = `${x}px`;
+            robot.style.top = `${y}px`;
+        }
         robot.addEventListener('mousedown', (event) => {
             if (isStarted) return;
             isDragging = true;
@@ -111,7 +115,9 @@
 
             socket.onmessage = function(event) {
                 let data = JSON.parse(event.data);
-                updatePosition(data.x, data.y);
+                updatePosition2(
+                    parseFloat(robot.style.left)+(data.x*3), 
+                    parseFloat(robot.style.top)+(data.y*3));
             };
 
             socket.onclose = function(event) {
