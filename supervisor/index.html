@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robot Position Tracking</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=robot_2" />
+    <title>Robotnic</title>
     <style>
         .divHouse {
             display: flex;
@@ -34,17 +35,24 @@
         #robot {
             width: 60px;
             height: 60px;
-            background-color: blue;
+            background-color: #ADD8E6;
             position: absolute;
             top: 0;
             left: 0;
             border-radius: 20%;
             cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid black;
         }
         .control-panel {
             display: flex;
             gap: 10px;
             align-items: center;
+        }
+        #robot-icon {
+            font-size: 400%;
         }
     </style>
 </head>
@@ -54,7 +62,11 @@
             <div class="section">Recarga</div>
             <div class="section"></div>
             <div class="section">Estoque</div>
-            <div id="robot"></div>
+            <div id="robot">
+                <span id="robot-icon" class="material-symbols-outlined">
+                robot_2
+                </span>
+            </div>
         </div>
 
         <div class="control-panel">

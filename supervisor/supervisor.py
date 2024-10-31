@@ -26,31 +26,33 @@ async def get():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     
-    brick = conectar_nxt(ENDERECO)
-    if not brick:
-        await websocket.send_json({"error": "Não foi possível conectar ao NXT."})
-        await websocket.close()
-        return
+    # brick = conectar_nxt(ENDERECO)
+    # if not brick:
+    #     await websocket.send_json({"error": "Não foi possível conectar ao NXT."})
+    #     await websocket.close()
+    #     return
     
-    enviar_msg(brick, "Iniciar")
+    # enviar_msg(brick, "Iniciar")
     
     try:
         while True:
-            msg = await receber_msg(brick)
-            if msg:
-                try:
-                    data = loads(msg)
-                    robot_position['x'] = int(data.get('x', 0)) / 1000
-                    robot_position['y'] = int(data.get('y', 0)) / 1000
-                    await websocket.send_json(robot_position)
-                except (ValueError, TypeError) as e:
-                    print(f"Mensagem: {msg}")
+            robot_position['x'] = 20
+            robot_position['y'] = 0 
+            await websocket.send_json(robot_position)
+            # msg = await receber_msg(brick)
+            # if msg:
+            #     try:
+            #         data = loads(msg)
+            #         robot_position['x'] = int(data.get('x', 0)) / 1000
+            #         robot_position['y'] = int(data.get('y', 0)) / 1000
+            #         await websocket.send_json(robot_position)
+            #     except (ValueError, TypeError) as e:
+            #         print(f"Mensagem: {msg}")
             await asyncio.sleep(0.5)
     except Exception as e:
         print(f"Erro na conexão com NXT. \n{e}")
         await websocket.close()  
     finally:
-        brick.close()
         print("Conexão Bluetooth encerrada.")
 
 
