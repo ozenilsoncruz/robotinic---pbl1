@@ -206,7 +206,7 @@ bool pegarObjeto() {
     int valor = SensorUS(SENSOR_ULTRASSOM);
     if (valor < DISTANCIA_OBSTACULO) {
         frear();
-        andarPorCm(DISTANCIA_OBSTACULO);
+        andarPorCm(distancia);
         if((Sensor(SENSOR_TOQUE) == 0 && Sensor(SENSOR_TOQUE_2) == 0)) {
             acionarGarra();
             return true;
@@ -254,7 +254,7 @@ task detectarParede() {
         int distancia = SensorUS(SENSOR_ULTRASSOM);
         if (distancia < DISTANCIA_OBSTACULO) {
             frear();
-            andarPorCm(DISTANCIA_OBSTACULO);
+            andarPorCm(distancia);
             if (Sensor(SENSOR_TOQUE) == 1 || Sensor(SENSOR_TOQUE_2) == 1) {
                 andarTrasUmaVez();
                 girarDireita();
