@@ -7,6 +7,7 @@
 // Definicao dos sensores ativos
 #define SENSOR_COR S3
 #define SENSOR_TOQUE S1
+#define SENSOR_TOQUE_2 S4
 #define SENSOR_ULTRASSOM S2
 
 // Canal de comunica??o Bluetooth
@@ -57,8 +58,7 @@ bool girar_Direita = true;
 bool procurarObjeto = false;
 bool objetoAdquirido = false;
 
-float motorEsquerdoCount = 0;
-float motorDireitoCount = 0;
+
 
 
 mutex motorDireitoEsquerdoMutex;
@@ -68,8 +68,8 @@ void enviarMensagem(string msg) {
 }
 
 void calcularOdometria() {
-    motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
-    motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
+    float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
+    float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
     float deslocamento_motor_direito = motorDireitoCount * PI * (DIAMETRO_RODA);
     float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * (DIAMETRO_RODA);
     float compensacao_motor_direito = 1.5 * motorDireitoCount * PI;
@@ -203,7 +203,6 @@ bool pegarObjeto() {
         frear();
         andarFrenteNumeroVezes(1);
         acionarGarra();
-        objetoAdquirido = true;
         return true;
     }
     return false;
@@ -225,9 +224,11 @@ string lerCor(int cor) {
 task mostrarInformacoes() {
     while(true) {
         ClearScreen();
+        float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
+        float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
         int distancia = SensorUS(SENSOR_ULTRASSOM);
         int valorLuz = Sensor(SENSOR_COR);
-        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia) + "Obj:" + NumToStr(objetoAdquirido));
+        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia) + " Obj:" + NumToStr(objetoAdquirido));
         TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
         TextOut(0, LCD_LINE3, "Estado:" + NumToStr(estadoAtual));
         TextOut(0, LCD_LINE4, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
@@ -243,7 +244,7 @@ task mostrarInformacoes() {
 task detectarParede() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
-        if (Sensor(SENSOR_TOQUE) == 1) {
+        if (Sensor(SENSOR_TOQUE) == 1 || Sensor(SENSOR_TOQUE_2) == 1) {
             frear();
             andarTrasUmaVez();
             girarDireita();
@@ -256,34 +257,23 @@ task detectarParede() {
 task explorar() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
-        if(procurarObjeto && !objetoAdquirido) {
-            andarFrenteUmaVez();
-            if(pegarObjeto()) continue;
-            girarEmGraus(-45);
-            if(pegarObjeto()) continue;
-            girarEmGraus(90);
-            if(pegarObjeto()) continue;
-            girarEmGraus(-45);
+        if(procurarObjeto) {
+            andarFrente();
+            if(pegarObjeto()) {
+                objetoAdquirido = true;
+            }
+            // frear();
+            // girarEmGraus(-45);
+            // if(pegarObjeto()) continue;
+            // girarEmGraus(90);
+            // if(pegarObjeto()) continue;
+            // girarEmGraus(-45);
         }
+        Wait(100);
         Release(motorDireitoEsquerdoMutex);
     }
 }
 
-task detectarObjeto() {
-    while (true) {
-        if(procurarObjeto) {
-            Acquire(motorDireitoEsquerdoMutex);
-            int valor = SensorUS(SENSOR_ULTRASSOM);
-            if (SensorUS(SENSOR_ULTRASSOM) < DISTANCIA_OBJETO && Sensor(SENSOR_TOQUE) == 0) {
-                frear();
-                andarFrenteNumeroVezes(0.8);
-                acionarGarra();
-                objetoAdquirido = true;
-            }
-            Release(motorDireitoEsquerdoMutex);
-        }
-    }
-}
 
 
 task detectarCor() {
@@ -311,78 +301,77 @@ task atualizarEstado() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
         switch (estadoAtual) {
-            // case SAIR_BASE: //Estado OK!
-            //     if (corDetectada == PRATA) {
-            //         frear();
-            //         andarFrente();
-            //         Wait(1000);
-            //         estadoAtual = MOVER_PARA_ESTOQUE;
-            //     }
-            //     else if(corDetectada == BRANCO) {
-            //         andarFrente();
-            //     }
-            //     else if (corDetectada == PRETO) {
-            //         frear();
-            //         andarTrasUmaVez();
-            //         girarDireita();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
-            //     }
-            //     break;
-            // case MOVER_PARA_ESTOQUE:
-            //     if (corDetectada == PRATA) {
-            //         frear();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
-            //         // estadoAtual = PROCURAR_OBJETO;
-            //     }
-            //     else if(corDetectada == BRANCO) {
-            //         andarFrente();
-            //     }
-            //     else if (corDetectada == PRETO) {
-            //         frear();
-            //         andarTrasUmaVez();
-            //         girarDireita();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
-            //     }
-            //     break;
-            case PROCURAR_OBJETO:
-                procurarObjeto = true;
-                if (objetoAdquirido) {
-                    procurarObjeto = false;
-                    andarFrente();
-                    // estadoAtual = SAIR_ESTOQUE;
-                    break;
-                }
-                else if(corDetectada == PRATA || corDetectada == PRETO) {
+            case SAIR_BASE: //Estado OK!
+                if (corDetectada == PRATA) {
                     frear();
-                    andarTrasUmaVez();
-                    girarDireita();
+                    andarFrente();
+                    Wait(1000);
+                    estadoAtual = MOVER_PARA_ESTOQUE;
                 }
                 else if(corDetectada == BRANCO) {
                     andarFrente();
                 }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                }
                 break;
-            // case SAIR_ESTOQUE:
-            //     if (corDetectada == PRATA) {
-            //         frear();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
-            //         estadoAtual = ENTRAR_ESTACAO_TRABALHO,;
-            //         andarFrente();
-            //     }
-            //     else if(corDetectada == BRANCO) {
-            //         andarFrente();
-            //     }
-            //     else if (corDetectada == PRETO) {
-            //         frear();
-            //         andarTrasUmaVez();
-            //         girarDireita();
-            //         andarFrenteUmaVez();
-            //         girarEsquerda();
-            //     }
-            //     break;
+            case MOVER_PARA_ESTOQUE:
+                if (corDetectada == PRATA) {
+                    frear();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                    estadoAtual = PROCURAR_OBJETO;
+                }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                }
+                break;
+            case PROCURAR_OBJETO:
+                procurarObjeto = true;
+                if (objetoAdquirido) { 
+                    procurarObjeto = false;
+                    estadoAtual = SAIR_ESTOQUE;
+                    break;
+                }
+                if(corDetectada == PRATA || corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                }
+                if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                break;
+            case SAIR_ESTOQUE:
+                if (corDetectada == PRATA) {
+                    frear();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                    estadoAtual = ENTRAR_ESTACAO_TRABALHO,;
+                    andarFrente();
+                }
+                else if(corDetectada == BRANCO) {
+                    andarFrente();
+                }
+                else if (corDetectada == PRETO) {
+                    frear();
+                    andarTrasUmaVez();
+                    girarDireita();
+                    andarFrenteUmaVez();
+                    girarEsquerda();
+                }
+                break;
 
         //     case ENTRAR_ESTACAO_TRABALHO:
         //         if (corDetectada == PRATA) {
@@ -451,12 +440,11 @@ task atualizarEstado() {
         //         break;
         }
         Release(motorDireitoEsquerdoMutex);
-        Wait(100);
     }
 }
 
 task main() {
-    SetSensorLight(SENSOR_COR);
+    SetSensorLight(SENSOR_COR, false);
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
@@ -467,13 +455,16 @@ task main() {
     //     ReceiveMessage(MAILBOX_RECIVE, true, msg);
     // }
 
-    //andarFrenteNumeroVezes(0.5);
+
     //Precedes(mostrarInformacoes);
-    Precedes(atualizarEstado, mostrarInformacoes, detectarCor, detectarParede, explorar);
+    Precedes(mostrarInformacoes, detectarCor);
 
 
 
 }
+
+
+
 
 
 
