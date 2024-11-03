@@ -250,15 +250,10 @@ task mostrarInformacoes() {
 
 task detectarParede() {
     while (true) {
-        Acquire(motorDireitoEsquerdoMutex);
-        int distancia = SensorUS(SENSOR_ULTRASSOM);
-        if (distancia < DISTANCIA_OBSTACULO) {
-            frear();
-            andarPorCm(distancia);
-            if (Sensor(SENSOR_TOQUE) == 1 || Sensor(SENSOR_TOQUE_2) == 1) {
-                andarTrasUmaVez();
-                girarDireita();
-            }
+        Acquire(motorDireitoEsquerdoMutex); //TODO: testar se é necessário, sem o mutex talvez essa task tenha prioridade
+        if (Sensor(SENSOR_TOQUE) == 1 || Sensor(SENSOR_TOQUE_2) == 1) {
+            andarPorCm(10, false);
+            girarDireita();
         }
         Release(motorDireitoEsquerdoMutex);
     }
