@@ -62,7 +62,7 @@ bool detectarVermelho = false;
 int estacoesTrabalho = 0;
 
 
-
+float deslocamento_medio = 0;
 
 mutex motorDireitoEsquerdoMutex;
 
@@ -75,14 +75,15 @@ void calcularOdometria(int compensacao = 0) {
     float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
     float deslocamento_motor_direito = motorDireitoCount * PI * (DIAMETRO_RODA);
     float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * (DIAMETRO_RODA);
-    float deslocamento_medio = ((deslocamento_motor_direito) + (deslocamento_motor_esquerdo)) / 2;
+    deslocamento_medio = ((deslocamento_motor_direito) + (deslocamento_motor_esquerdo)) / 2;
     float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / (DISTANCIA_ENTRE_RODAS);
 
-    angulo += mudanca_angulo + compensacao / 57.2958;
+    angulo += (mudanca_angulo + (compensacao/57.2958));
 
     float delta_x = deslocamento_medio * Cos(angulo);
     float delta_y = deslocamento_medio * Sin(angulo);
 
+    // Convertendo para cent?metros
     x = delta_x / 100;
     y = delta_y / 100;
 
@@ -99,10 +100,10 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
     int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
 
     if (frente) {
-        RotateMotorEx(motor, VELOCIDADE_MEDIA, graus_motor, 0, true, false);
+        RotateMotorEx(motor, VELOCIDADE_MEDIA, graus_motor, 0, true, true);
     }
     else {
-        RotateMotorEx(motor, -VELOCIDADE_MEDIA, graus_motor, 0, true, false);
+        RotateMotorEx(motor, -VELOCIDADE_MEDIA, graus_motor, 0, true, true);
 
     }
     calcularOdometria();
@@ -300,7 +301,7 @@ task detectarCor() {
 
 // Fun??o principal de atualiza??o de estado
 task atualizarEstado() {
-    estadoAtual = SAIR_ESTOQUE;
+    estadoAtual = SAIR_BASE;
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
         switch (estadoAtual) {
@@ -325,9 +326,8 @@ task atualizarEstado() {
             case MOVER_PARA_ESTOQUE: //Estado OK!
                 if (corDetectada == PRATA) {
                     frear();
-                    andarPorCm(25);
-                    //girarDireita();
-                    girarEsquerda();
+                    andarPorCm(20);
+                    girarDireita();
                     estadoAtual = PROCURAR_OBJETO;
                 }
                 else if(corDetectada == BRANCO) {
@@ -520,12 +520,13 @@ task main() {
     //     ReceiveMessage(MAILBOX_RECIVE, true, msg);
     // }
 
-    girarDireita();
-    girarEsquerda();
-    //girarEsquerda();
-    Precedes(mostrarInformacoes);
-    //Precedes(mostrarInformacoes, detectarCor, detectarParede, explorar, atualizarEstado);
+
+    while(Sensor(SENSOR_TOQUE) == 0) {};
+    Precedes(mostrarInformacoes, detectarCor, detectarParede, explorar, atualizarEstado);
     }
+
+
+
 
 
 
