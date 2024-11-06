@@ -113,11 +113,14 @@ void acionarMotor(int motor, float num_voltas, bool frente=true) {
 
 void acionarMotores(bool frente=true) {
     if(frente) {
-        // TODO: testar se o rob? caminha reto
-        OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+        //OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+        OnFwd(MOTOR_DIREITO, VELOCIDADE_MEDIA - 3);
+        OnFwd(MOTOR_ESQUERDO, VELOCIDADE_MEDIA);
     }
     else {
-        OnRevSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+        //OnRevSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+        OnRev(MOTOR_DIREITO, VELOCIDADE_MEDIA - 3);
+        OnRev(MOTOR_ESQUERDO, VELOCIDADE_MEDIA);
     }
 }
 
@@ -236,7 +239,7 @@ task mostrarInformacoes() {
         TextOut(0, LCD_LINE4, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
         TextOut(0, LCD_LINE5, "X:" + NumToStr(x));
         TextOut(0, LCD_LINE6, "Y:" + NumToStr(y));
-        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo * 57.2958));
+        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo));
         TextOut(0, LCD_LINE8, "Garra: " + NumToStr(MotorRotationCount(MOTOR_GARRA)));
         Wait(100);
     }
