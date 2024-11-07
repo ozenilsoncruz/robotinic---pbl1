@@ -4,7 +4,7 @@ import asyncio
 from random import randint
 from json import loads
 from typing import Tuple
-from math import pi, cos, sen
+from math import pi, cos, sin
 
 from bluetooth_nxt import conectar_nxt, enviar_msg, receber_msg
 
@@ -41,7 +41,7 @@ def calculaOdometria(motorEsquerdo: int, motorDireito: int) -> Tuple[int]:
     angulo += (mudanca_angulo + (compensacao/57.2958))
 
     delta_x = deslocamento_medio * cos(angulo)
-    delta_y = deslocamento_medio * sen(angulo)
+    delta_y = deslocamento_medio * sin(angulo)
 
     return (delta_x/100, delta_y/100)
     
