@@ -42,19 +42,19 @@ def receber_msg(brick: Brick) -> str:
         while True:
             try:
                 _, msg = brick.message_read(MAILBOX_RECIVE, 0, True)
-                return msg.decode()
+                return msg.decode().replace("\x00", "")
             except DirectProtocolError:
                 continue
     except Exception as e:
         print(f"Erro ao receber mensagens: {e}")
-        return "" 
+        return ""
 
-
-ENDERECO = "00:16:53:09:70:AA"
-
-
-brick = conectar_nxt(ENDERECO)
-
-enviar_msg(brick, "TESTE")
-
-print(receber_msg(brick))
+# ENDERECO = "00:16:53:09:70:AA"
+# brick = conectar_nxt(ENDERECO)
+# if brick:
+#     print("Enviando mensagem")
+#     enviar_msg(brick, "Iniciar")
+#     while True:
+#         print("Recebendo mensagem")
+#         msg = receber_msg(brick)
+#         print(f"Mensagem recebida: {msg}")
