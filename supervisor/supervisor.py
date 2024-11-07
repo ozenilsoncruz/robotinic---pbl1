@@ -18,7 +18,7 @@ ENDERECO = "00:16:53:09:70:AA"
 
 
 robot_position = {"x": 20, "y": 50}
-
+angulo = 0
 
 @app.get("/")
 async def get():
@@ -31,6 +31,7 @@ async def get():
 
 
 def calculaOdometria(motorEsquerdo: int, motorDireito: int) -> Tuple[int]:
+    global angulo
     compensacao = 10
     
     deslocamento_motor_direito = motorDireito * pi * (DIAMETRO_RODA)

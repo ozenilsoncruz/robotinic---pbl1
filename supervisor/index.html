@@ -17,40 +17,40 @@
             position: relative;
             width: 816px;
             height: 540px;
-            border: 1px solid black;
+            border: 2px solid black;
             display: grid;
             grid-template-columns: 120px 576px 120px;
             background-color: rgb(233, 233, 233);
         }
         .section {
-            border-right: 1px solid black;
+            border-right: 2px solid black;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 1.5em;
         }
-        .section:last-child {
+        #estoque {
             border-right: none;
         }
         .station {
             width: 90px;
             height: 90px;
-            border: 1px solid black;
+            border: 2px solid black;
             position: absolute;
         }
-        #station1 { top: 0px; left: 264px; }
-        #station2 { top: 0px; left: 462px; }
+        #station1 { top: -2px; left: 264px; }
+        #station2 { top: -2px; left: 462px; }
         #station3 { top: 225px; left: 264px; }
         #station4 { top: 225px; left: 462px; }
-        #station5 { top: 450px; left: 264px; }
-        #station6 { top: 450px; left: 462px; }
+        #station5 { top: 448px; left: 264px; }
+        #station6 { top: 448px; left: 462px; }
 
         #robot {
             width: 60px;
             height: 60px;
             background-color: #ADD8E6;
             position: absolute;
-            top: 150px;
+            top: 135px;
             left: 30px;
             border-radius: 20%;
             cursor: grab;
@@ -81,7 +81,7 @@
                 <div id="station5" class="station"></div>
                 <div id="station6" class="station"></div>
             </div>
-            <div class="section">Estoque</div>
+            <div class="section" id="estoque">Estoque</div>
             <div id="robot">
                 <span id="robot-icon" class="material-symbols-outlined">
                 robot_2
