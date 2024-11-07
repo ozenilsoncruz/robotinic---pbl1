@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,12 +32,30 @@
         #estoque {
             border-right: none;
         }
-        .station {
+        .station_cima, .station_baixo {
             width: 90px;
             height: 90px;
             border: 2px solid black;
             position: absolute;
         }
+        .station_cima::before, .station_baixo::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 3px;
+            background-color: silver;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .station_baixo::after {
+            top: -2px;
+        }
+        
+        .station_cima::before {
+            bottom: -2px;
+        }
+        
         #station1 { top: -2px; left: 264px; }
         #station2 { top: -2px; left: 462px; }
         #station3 { top: 225px; left: 264px; }
@@ -74,12 +92,12 @@
         <div class="warehouse">
             <div class="section">Recarga</div>
             <div class="section">
-                <div id="station1" class="station"></div>
-                <div id="station2" class="station"></div>
-                <div id="station3" class="station"></div>
-                <div id="station4" class="station"></div>
-                <div id="station5" class="station"></div>
-                <div id="station6" class="station"></div>
+                <div id="station1" class="station station_cima"></div>
+                <div id="station2" class="station station_cima"></div>
+                <div id="station3" class="station station_cima station_baixo"></div>
+                <div id="station4" class="station station_cima station_baixo"></div>
+                <div id="station5" class="station station_baixo"></div>
+                <div id="station6" class="station station_baixo"></div>
             </div>
             <div class="section" id="estoque">Estoque</div>
             <div id="robot">
