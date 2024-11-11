@@ -48,13 +48,3 @@ def receber_msg(brick: Brick) -> str:
     except Exception as e:
         print(f"Erro ao receber mensagens: {e}")
         return ""
-
-# ENDERECO = "00:16:53:09:70:AA"
-# brick = conectar_nxt(ENDERECO)
-# if brick:
-#     print("Enviando mensagem")
-#     enviar_msg(brick, "Iniciar")
-#     while True:
-#         print("Recebendo mensagem")
-#         msg = receber_msg(brick)
-#         print(f"Mensagem recebida: {msg}")

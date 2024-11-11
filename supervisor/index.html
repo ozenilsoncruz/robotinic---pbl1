@@ -167,7 +167,8 @@
                 let data = JSON.parse(event.data);
                 updatePosition2(
                     parseFloat(robot.style.left)+(data.x*3), 
-                    parseFloat(robot.style.top)+(data.y*3));
+                    parseFloat(robot.style.top)+(data.y*3)
+                );
             };
 
             socket.onclose = function(event) {
