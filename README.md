@@ -56,4 +56,4 @@ O projeto requer as seguintes bibliotecas Python e pacotes de sistema:
 
 **Obs:**
 - **Ativar Bluetooth**: O NXT deve estar com o Bluetooth ativado. Isso pode ser feito no menu de configurações do dispositivo NXT.
-- **Emparelhamento Bluetooth**: É necessário emparelhar manualmente o NXT com o computador, antes de estabelecer a conexão via código. O emparelhamento é feito utilizando o código de PIN padrão do NXT (geralmente `1234`).
+- **Emparelhamento Bluetooth**: É necessário emparelhar manualmente o NXT com o computador, antes de estabelecer a conexão via código. O emparelhamento é feito utilizando o código de PIN padrão do NXT (`1234`).
