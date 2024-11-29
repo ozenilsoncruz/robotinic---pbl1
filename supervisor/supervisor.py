@@ -32,8 +32,8 @@ async def get():
 def calculaOdometria(motorEsquerdo: int, motorDireito: int, compensacao: int) -> Tuple[int]:
     global angulo
     
-    deslocamento_motor_direito = motorDireito * pi * (DIAMETRO_RODA)
-    deslocamento_motor_esquerdo = motorEsquerdo * pi * (DIAMETRO_RODA)
+    deslocamento_motor_direito = motorDireito/360 * pi * (DIAMETRO_RODA)
+    deslocamento_motor_esquerdo = motorEsquerdo/360 * pi * (DIAMETRO_RODA)
     deslocamento_medio = ((deslocamento_motor_direito) + (deslocamento_motor_esquerdo)) / 2 
     mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / (DISTANCIA_ENTRE_RODAS)
     
