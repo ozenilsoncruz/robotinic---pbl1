@@ -25,8 +25,8 @@ Autores:
 
 // Potencias dos motores
 #define VELOCIDADE_MAXIMA 100
-#define VELOCIDADE_MEDIA 35
-#define VELOCIDADE_MINIMA 30
+#define VELOCIDADE_MEDIA 30
+#define VELOCIDADE_MINIMA 15
 
 // Distancia para deteccao de obstaculos
 #define DISTANCIA_OBSTACULO 25
@@ -43,32 +43,11 @@ Autores:
 #define DISTANCIA_ENTRE_RODAS 18.5
 
 
-enum Estado {
-    SAIR_BASE,
-    MOVER_PARA_ESTOQUE,
-    PROCURAR_OBJETO,
-    SAIR_ESTOQUE,
-    PROCURAR_ESTACAO_TRABALHO,
-    ENTRAR_ESTACAO_TRABALHO,
-    ESTACAO_TRABALHO,
-    ACHAR_OUTRA_ESTACAO_TRABALHO,
-    SAIR_ESTACAO_TRABALHO,
-    RETORNAR_BASE
-};
-
-Estado estadoAtual;
-
-// Vari?veis globais
 float x = 0;
 float y = 0;
 float angulo = 0;
 
 int corDetectada = 0;
-bool deveGirarDireita = false; // Vari?vel para indicar se o rob? deve girar para a direita ou esquerda
-bool procurarObjeto = false;
-bool objetoAdquirido = false;
-bool detectarVermelho = false;
-int estacoesTrabalho = 0;
 
 mutex motorDireitoEsquerdoMutex;
 
@@ -76,53 +55,45 @@ void enviarMensagem(string msg) {
     SendMessage(MAILBOX_SEND, msg);
 }
 
-void calcularOdometria(int compensacao = 0) {
-    float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO)/360;
-    float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
-    float deslocamento_motor_direito = motorDireitoCount * PI * (DIAMETRO_RODA);
-    float deslocamento_motor_esquerdo = motorEsquerdoCount * PI * (DIAMETRO_RODA);
-    float deslocamento_medio = ((deslocamento_motor_direito) + (deslocamento_motor_esquerdo)) / 2;
-    float mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / (DISTANCIA_ENTRE_RODAS);
+void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
+    int graus_motor = 360 * num_voltas;  // Quantos graus os motores devem girar
+    int direcao = frente ? 1 : -1;      // Determina a direção do movimento
 
-    angulo += (mudanca_angulo + (compensacao/57.2958));
+    // posição inicial de ambos os motores
+    int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+    int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
 
-    float delta_x = deslocamento_medio * Cos(angulo);
-    float delta_y = deslocamento_medio * Sin(angulo);
+    // Liga os motores na direção desejada
+    // OnFwdReg(MOTOR_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
+    // OnFwdReg(MOTOR_DIREITO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
+    OnFwdReg(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SYNC);
 
-    // Convertendo para cent?metros
-    x = delta_x / 100;
-    y = delta_y / 100;
+    while (true) {
+        int pos_atual_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+        int pos_atual_direito = MotorRotationCount(MOTOR_DIREITO);
 
-    string msg = NumToStr(motorEsquerdoCount) + "," + NumToStr(motorDireitoCount) + "," + NumToStr(compensacao);
-    enviarMensagem(msg);
-    ResetRotationCount(MOTOR_DIREITO);
-    ResetRotationCount(MOTOR_ESQUERDO);
-    Wait(500);
-}
+        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;
+        bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
 
-
-void acionarMotor(int motor, float num_voltas, bool frente=true) {
-
-    int graus_motor = 360 * num_voltas;  // Quantos graus o motor deve girar
-
-    if (frente) {
-        RotateMotorEx(motor, VELOCIDADE_MEDIA, graus_motor, 0, true, true);
+        if (esquerdo_pronto && direito_pronto) {
+            // Off(MOTOR_ESQUERDO);
+            // Off(MOTOR_DIREITO);
+            Off(MOTOR_DIREITO_ESQUERDO);
+            break;  
+        }
+        Wait(10);
     }
-    else {
-        RotateMotorEx(motor, -VELOCIDADE_MEDIA, graus_motor, 0, true, true);
-
-    }
-
 }
-
 
 void acionarMotores(bool frente=true) {
-    if(frente) {
-        OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
-    }
-    else {
-        OnRevSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
-    }
+    int direcao = frente ? 1 : -1; 
+    OnFwdReg(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SYNC);
+    // if(frente) {
+    //     OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+    // }
+    // else {
+    //     OnRevSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
+    // }
 }
 
 
@@ -145,31 +116,11 @@ void girarEmGraus(int grausRotacao) {
 void andarPorCm(float distancia, bool frente=true) {
     float circunferencia_roda = PI * DIAMETRO_RODA;
     float numero_rotacoes = distancia / circunferencia_roda;
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, numero_rotacoes, frente);
+    acionarMotoresPorVoltas(numero_rotacoes, frente);
 }
 
 void andarFrente() {
     acionarMotores();
-}
-
-void andarFrenteUmaVez() {
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, 1);
-}
-
-void andarFrenteNumeroVezes(float vezes) {
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, vezes);
-}
-
-void andarTras() {
-    acionarMotores(false);
-}
-
-void andarTrasUmaVez() {
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, 0.5, false);
-}
-
-void andarTrasNumeroVezes(float vezes) {
-    acionarMotor(MOTOR_DIREITO_ESQUERDO, vezes, false);
 }
 
 void frear() {
@@ -188,38 +139,56 @@ void girar180() {
     girarEmGraus(180);
 }
 
-void acionarGarra() {
-    OnRev(MOTOR_GARRA, VELOCIDADE_MINIMA);
-    Wait(2000);
-    Off(MOTOR_GARRA);
-}
 
-void liberarGarra() {
-    RotateMotor(MOTOR_GARRA, VELOCIDADE_MINIMA, 75);
-}
+// Executa ações recebidas do supervisor
+void executarAcoes() {
+    string msg = "";
 
+    while (true) {
+        ReceiveMessage(MAILBOX_RECIVE, true, msg);
+        if (msg != "") {
+            // Verifica se a mensagem tem o formato esperado
+            // {
+            //     "action": "comando",
+            //     "value": valor
+            // }
 
-bool pegarObjeto() {
-    int valor = SensorUS(SENSOR_ULTRASSOM);
-    if (valor < DISTANCIA_OBSTACULO) {
-        frear();
-        while(valor > 12) {
-            andarFrente();
-            valor = SensorUS(SENSOR_ULTRASSOM);
+            if (SubStr(msg, 0, 1) == "{" && SubStr(msg, StrLen(msg) - 1, 1) == "}") {
+                int actionStart = Find(msg, "\"action\":\"") + 10;
+                int actionEnd = Find(SubStr(msg, actionStart, StrLen(msg) - actionStart), "\"");
+                string action = SubStr(msg, actionStart, actionEnd);
+
+                int valueStart = Find(msg, "\"value\":") + 8;
+                int valueEnd = Find(SubStr(msg, valueStart, StrLen(msg) - valueStart), "}");
+                float value = StrToFloat(SubStr(msg, valueStart, valueEnd));
+
+                // Executa a ação com base nos comandos
+                if (action == "move") {
+                    TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
+                    andarPorCm(value);
+                } else if (action == "rotateRight") {
+                    TextOut(0, LCD_LINE1, "Girando Dir: " + NumToStr(value) + " graus");
+                    girarEmGraus(-value);
+                } else if (action == "rotateLeft") {
+                    TextOut(0, LCD_LINE1, "Girando Esq: " + NumToStr(value) + " graus");
+                    girarEmGraus(value);
+                } else if (action == "stop") {
+                    TextOut(0, LCD_LINE1, "Parando: " + NumToStr(value) + " ms");
+                    frear();
+                    Wait(value);
+                } else {
+                    TextOut(0, LCD_LINE1, "Ação inválida");
+                }
+            } else {
+                TextOut(0, LCD_LINE1, "Formato inválido");
+            }
+            // Limpa a mensagem para evitar repetição
+            msg = "";
         }
-        if(Sensor(SENSOR_TOQUE) == 0 ) {
-            acionarGarra();
-            return true;
-        }
+        Wait(100);
     }
-    return false;
 }
 
-task enviarOdometria() {
-    while(true) {
-        calcularOdometria();
-    }
-}
 
 string lerCor(int cor) {
     if (cor == 1) {
@@ -234,6 +203,18 @@ string lerCor(int cor) {
     else return "Unknown";
 }
 
+task enviarOdometria() {
+    while(true) {
+        float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO);
+        float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO);
+        string msg = NumToStr(motorEsquerdoCount) + "," + NumToStr(motorDireitoCount);
+        enviarMensagem(msg);
+        ResetRotationCount(MOTOR_DIREITO);
+        ResetRotationCount(MOTOR_ESQUERDO);
+        Wait(500);
+    }
+}
+
 task mostrarInformacoes() {
     while(true) {
         ClearScreen();
@@ -241,14 +222,13 @@ task mostrarInformacoes() {
         float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
         int distancia = SensorUS(SENSOR_ULTRASSOM);
         int valorLuz = Sensor(SENSOR_COR);
-        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia) + " Obj:" + NumToStr(objetoAdquirido));
+        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia) + " Obj:");
         TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
-        TextOut(0, LCD_LINE3, "Estado:" + NumToStr(estadoAtual));
-        TextOut(0, LCD_LINE4, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
-        TextOut(0, LCD_LINE5, "X:" + NumToStr(x));
-        TextOut(0, LCD_LINE6, "Y:" + NumToStr(y));
-        TextOut(0, LCD_LINE7, "Angulo: " + NumToStr(angulo));
-        TextOut(0, LCD_LINE8, "Garra: " + NumToStr(MotorRotationCount(MOTOR_GARRA)));
+        TextOut(0, LCD_LINE3, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
+        TextOut(0, LCD_LINE4, "X:" + NumToStr(x));
+        TextOut(0, LCD_LINE5, "Y:" + NumToStr(y));
+        TextOut(0, LCD_LINE6, "Angulo: " + NumToStr(angulo));
+        TextOut(0, LCD_LINE7, "Garra: " + NumToStr(MotorRotationCount(MOTOR_GARRA)));
         Wait(100);
     }
 }
@@ -266,29 +246,11 @@ task detectarParede() {
 }
 
 
-task explorar() {
-    while (true) {
-        if(procurarObjeto) {
-        Acquire(motorDireitoEsquerdoMutex);
-            andarFrente();
-            if(pegarObjeto()) {
-                objetoAdquirido = true;
-            }
-        Wait(100);
-        Release(motorDireitoEsquerdoMutex);
-        }
-    }
-}
-
-
 
 task detectarCor() {
     while (true) {
         int valorLuz = Sensor(SENSOR_COR);
-        if (valorLuz >= 21 && valorLuz < 27 && detectarVermelho) {
-            corDetectada = VERMELHO;
-        }
-        else if (valorLuz < 40) {
+        if (valorLuz < 40) {
             corDetectada = PRETO;
         }
         else if (valorLuz >= 40 && valorLuz < 65) {
@@ -302,219 +264,17 @@ task detectarCor() {
 }
 
 
-// Task para atualizar o estado do robô
-task atualizarEstado() {
-    estadoAtual = SAIR_BASE;
-    while (true) {
-        Acquire(motorDireitoEsquerdoMutex);
-        switch (estadoAtual) {
-            case SAIR_BASE: 
-                if (corDetectada == PRATA) {
-                    frear();
-                    andarFrente();
-                    Wait(1000);
-                    estadoAtual = MOVER_PARA_ESTOQUE;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarTrasUmaVez();
-                    girarDireita();
-                    andarPorCm(10);
-                    girarEsquerda();
-                }
-                break;
-            case MOVER_PARA_ESTOQUE: 
-                if (corDetectada == PRATA) {
-                    frear();
-                    andarPorCm(20);
-                    girarDireita();
-                    estadoAtual = PROCURAR_OBJETO;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarPorCm(10, false);
-                    girarDireita();
-                    andarPorCm(10);
-                    girarEsquerda();
-                }
-                break;
-            case PROCURAR_OBJETO: 
-                procurarObjeto = true;
-                if (objetoAdquirido) {
-                    procurarObjeto = false;
-                    andarFrente();
-                    girarDireita();
-                    estadoAtual = SAIR_ESTOQUE;
-                }
-                else if(corDetectada == PRATA || corDetectada == PRETO) {
-                    frear();
-                    andarPorCm(10, false);
-                    girarDireita();
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                break;
-            case SAIR_ESTOQUE: 
-                if (corDetectada == PRATA) {
-                    frear();
-                    andarPorCm(25);
-                    girarEsquerda();
-                    estadoAtual = PROCURAR_ESTACAO_TRABALHO;
-                    andarFrente();
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarPorCm(10, false);
-                    girarDireita();
-                    andarPorCm(10);
-                    girarEsquerda();
-                }
-                break;
-            case PROCURAR_ESTACAO_TRABALHO:
-                if (corDetectada == PRATA) {
-                    andarFrente();
-                    estadoAtual = ESTACAO_TRABALHO;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarPorCm(10, false);
-                    girarDireita();
-                    andarPorCm(25);
-                    girarEsquerda();
-                    andarPorCm(10);
-                    girarEsquerda();
-                    estadoAtual = ENTRAR_ESTACAO_TRABALHO;
-                }
-                break;
-            case ENTRAR_ESTACAO_TRABALHO:
-                if (corDetectada == PRATA) {
-                    andarPorCm(5);
-                    estadoAtual = ESTACAO_TRABALHO;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarTrasUmaVez();
-                    girarDireita();
-                    andarPorCm(5);
-                    girarEsquerda();
-                }
-                break;
-            case ESTACAO_TRABALHO:
-                SetSensorLight(SENSOR_COR, false); 
-                // NOTE: Não vi muita diferenciação entre as cores mesmo com a luz desligada
-                detectarVermelho = true;
-                if (corDetectada == VERMELHO) {
-                    frear();
-                    andarPorCm(15, false);
-                    girar180();
-                    estadoAtual = ACHAR_OUTRA_ESTACAO_TRABALHO;
-                    SetSensorLight(SENSOR_COR, true);
-                    estacoesTrabalho++;
-                }
-                else {
-                    andarPorCm(5);
-                    liberarGarra();
-                    andarPorCm(15, false);
-                    girarDireita();
-                    estadoAtual = RETORNAR_BASE;
-                    SetSensorLight(SENSOR_COR, true);
-                }
-                break;
-            case ACHAR_OUTRA_ESTACAO_TRABALHO:
-                if(estacoesTrabalho == 1) {
-                    if (corDetectada == PRATA) {
-                        frear();
-                        andarFrente();
-                        deveGirarDireita = true;
-                        estadoAtual = ESTACAO_TRABALHO;
-                    }
-                    else if(corDetectada == BRANCO) {
-                        andarFrente();
-                    }
-                    else if (corDetectada == PRETO) {
-                        frear();
-                        andarPorCm(10, false);
-                        girarDireita();
-                        andarPorCm(10);
-                        girarEsquerda();
-                    }
-                }
-                break;
-            case SAIR_ESTACAO_TRABALHO:
-                if (corDetectada == PRATA) {
-                    frear();
-                    andarFrenteUmaVez();
-                    if(deveGirarDireita) {
-                        girarDireita();
-                    }
-                    else {
-                        girarEsquerda();
-                    }
-                    estadoAtual = RETORNAR_BASE;
-                    andarFrente();
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarTrasUmaVez();
-                    girarDireita();
-                }
-                break;
-            case RETORNAR_BASE:
-                if(corDetectada == PRATA) {
-                    andarPorCm(10);
-                    girar180();
-                    string msg = "";
-                    while(msg == "") {
-                        ReceiveMessage(MAILBOX_RECIVE, true, msg);
-                    }
-                    estadoAtual = SAIR_BASE;
-                }
-                else if(corDetectada == BRANCO) {
-                    andarFrente();
-                }
-                else if (corDetectada == PRETO) {
-                    frear();
-                    andarPorCm(10, false);
-                    girarDireita();
-                    andarPorCm(10);
-                    girarEsquerda();
-                }
-                break;
-        }
-        Release(motorDireitoEsquerdoMutex);
-    }
-}
 
 task main() {
     SetSensorLight(SENSOR_COR);
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    string msg = "";
-     while(msg == "") {
-        ReceiveMessage(MAILBOX_RECIVE, true, msg);
-     }
+    // string msg = "";
+    //  while(msg == "") {
+    //     ReceiveMessage(MAILBOX_RECIVE, true, msg);
+    //  }
 
-    Precedes(mostrarInformacoes, detectarCor, detectarParede, explorar, atualizarEstado, enviarOdometria);
     }
 
 
