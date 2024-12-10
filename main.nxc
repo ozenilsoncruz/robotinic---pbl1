@@ -1,6 +1,6 @@
-/*  
+/*
 PROBLEMA 1 - Paradigma Reativo
-Autores: 
+Autores:
     - Amanda Silva
     - Anderson Lima
     - Lyrton Marcel
@@ -79,14 +79,14 @@ void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
             // Off(MOTOR_ESQUERDO);
             // Off(MOTOR_DIREITO);
             Off(MOTOR_DIREITO_ESQUERDO);
-            break;  
+            break;
         }
         Wait(10);
     }
 }
 
 void acionarMotores(bool frente=true) {
-    int direcao = frente ? 1 : -1; 
+    int direcao = frente ? 1 : -1;
     OnFwdReg(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SYNC);
     // if(frente) {
     //     OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
@@ -141,53 +141,64 @@ void girar180() {
 
 
 // Executa ações recebidas do supervisor
-void executarAcoes() {
+void executarAcoesSupervisor() {
     string msg = "";
 
     while (true) {
+        // Recebe a mensagem via Bluetooth
         ReceiveMessage(MAILBOX_RECIVE, true, msg);
+
         if (msg != "") {
-            // Verifica se a mensagem tem o formato esperado
-            // {
-            //     "action": "comando",
-            //     "value": valor
-            // }
+            int startStr = 0;
+            int len = StrLen(msg);
 
-            if (SubStr(msg, 0, 1) == "{" && SubStr(msg, StrLen(msg) - 1, 1) == "}") {
-                int actionStart = Find(msg, "\"action\":\"") + 10;
-                int actionEnd = Find(SubStr(msg, actionStart, StrLen(msg) - actionStart), "\"");
-                string action = SubStr(msg, actionStart, actionEnd);
+            while (startStr < len) {
+                int commaPos = StrLen(msg) - startStr;
+                for (int i = startStr; i < len; i++) {
+                    if (StrIndex(msg, i) == ',') {
+                        commaPos = i - startStr;
+                        break;
+                    }
+                }
 
-                int valueStart = Find(msg, "\"value\":") + 8;
-                int valueEnd = Find(SubStr(msg, valueStart, StrLen(msg) - valueStart), "}");
-                float value = StrToFloat(SubStr(msg, valueStart, valueEnd));
+                string commandPair = SubStr(msg, startStr, commaPos);
 
-                // Executa a ação com base nos comandos
-                if (action == "move") {
+                int colonPos = StrLen(commandPair);
+                for (int i = 0; i < StrLen(commandPair); i++) {
+                    if (StrIndex(commandPair, i) == ':') {
+                        colonPos = i;
+                        break;
+                    }
+                }
+
+                string command = SubStr(commandPair, 0, colonPos);
+                float value = StrToNum(SubStr(commandPair, colonPos + 1, StrLen(commandPair) - (colonPos + 1)));
+
+                // Execute the command
+                if (command == "M") {
                     TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
                     andarPorCm(value);
-                } else if (action == "rotateRight") {
-                    TextOut(0, LCD_LINE1, "Girando Dir: " + NumToStr(value) + " graus");
-                    girarEmGraus(-value);
-                } else if (action == "rotateLeft") {
-                    TextOut(0, LCD_LINE1, "Girando Esq: " + NumToStr(value) + " graus");
+                } else if (command == "R") {
+                    TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
                     girarEmGraus(value);
-                } else if (action == "stop") {
+                } else if (command == "P") {
                     TextOut(0, LCD_LINE1, "Parando: " + NumToStr(value) + " ms");
                     frear();
                     Wait(value);
                 } else {
-                    TextOut(0, LCD_LINE1, "Ação inválida");
+                    TextOut(0, LCD_LINE1, "Comando inválido");
                 }
-            } else {
-                TextOut(0, LCD_LINE1, "Formato inválido");
+
+                startStr += commaPos + 1;
             }
-            // Limpa a mensagem para evitar repetição
+
             msg = "";
         }
+
         Wait(100);
     }
 }
+
 
 
 string lerCor(int cor) {
