@@ -63,9 +63,6 @@ void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
     int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
     int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
 
-    // Liga os motores na direção desejada
-    // OnFwdReg(MOTOR_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
-    // OnFwdReg(MOTOR_DIREITO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
     OnFwdReg(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SYNC);
 
     while (true) {
@@ -88,29 +85,48 @@ void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
 void acionarMotores(bool frente=true) {
     int direcao = frente ? 1 : -1;
     OnFwdReg(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SYNC);
-    // if(frente) {
-    //     OnFwdSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
-    // }
-    // else {
-    //     OnRevSync(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 0);
-    // }
 }
 
 
 
 void girarEmGraus(int grausRotacao) {
-    int graus = grausRotacao > 0 ? grausRotacao - 10 : grausRotacao + 8;
-    float distancia_percorrida = (DISTANCIA_ENTRE_RODAS * PI * abs(graus)) / 360.0;
+    int graus = grausRotacao > 0 ? grausRotacao - 19 : grausRotacao + 19;
+    // ResetRotationCount(MOTOR_DIREITO);
+    // ResetRotationCount(MOTOR_ESQUERDO);
+    int direcao = graus > 0 ? 1 : -1; // Determina a direção do giro
+    float distancia_percorrida = (DISTANCIA_ENTRE_RODAS * PI * abs(graus));
     float numero_rotacoes = distancia_percorrida / (PI * DIAMETRO_RODA);
-    int graus_motor = 360 * numero_rotacoes;
+    int graus_motor = numero_rotacoes;
 
-    if (graus > 0) {
-        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, graus_motor, -100, true, true);
-    } else {
-        // Girar para a direita
-        RotateMotorEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, graus_motor, 100, true, true);
+    // Posição inicial dos motores
+    
+    int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+    int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
+
+    // Acionar motores em direções opostas para girar em torno do eixo
+    // OnFwdReg(MOTOR_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
+    // OnFwdReg(MOTOR_DIREITO, VELOCIDADE_MEDIA * (-direcao), OUT_REGMODE_SPEED);
+
+    OnFwdSyncEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 100 * direcao, RESET_COUNT);
+
+    while (true) {
+        int pos_atual_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+        int pos_atual_direito = MotorRotationCount(MOTOR_DIREITO);
+
+        // Verificar se ambos os motores atingiram a rotação desejada
+        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;
+        bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
+
+        if (esquerdo_pronto && direito_pronto) {
+            // Parar os motores
+            Off(MOTOR_ESQUERDO);
+            Off(MOTOR_DIREITO);
+            break;
+        }
+        Wait(10); // Pequeno atraso para evitar uso excessivo de CPU
     }
 }
+
 
 // Fun??o para andar uma determinada dist?ncia em cent?metros.
 void andarPorCm(float distancia, bool frente=true) {
@@ -136,19 +152,23 @@ void girarEsquerda() {
 }
 
 void girar180() {
-    girarEmGraus(180);
+    girarEmGraus(90);
+    Wait(100);
+    girarEmGraus(90);
 }
 
 
 // Executa ações recebidas do supervisor
-void executarAcoesSupervisor() {
+task executarAcoesSupervisor() {
     string msg = "";
 
     while (true) {
         // Recebe a mensagem via Bluetooth
         ReceiveMessage(MAILBOX_RECIVE, true, msg);
-
+        //Tipo de mensagem esperada -> M:10,R:90,P:1000
         if (msg != "") {
+            Acquire(motorDireitoEsquerdoMutex);
+           TextOut(0, LCD_LINE1, "Msg");
             int startStr = 0;
             int len = StrLen(msg);
 
@@ -194,8 +214,8 @@ void executarAcoesSupervisor() {
 
             msg = "";
         }
-
-        Wait(100);
+        Release(motorDireitoEsquerdoMutex);
+        Wait(500);
     }
 }
 
@@ -249,8 +269,22 @@ task detectarParede() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
         if (Sensor(SENSOR_TOQUE) == 1) {
-            andarPorCm(1, false);
+            andarPorCm(10, false);
             girarDireita();
+        }
+        Release(motorDireitoEsquerdoMutex);
+    }
+}
+
+task desviarObstaculo() {
+    while(true) {
+        Acquire(motorDireitoEsquerdoMutex);
+        if (SensorUS(SENSOR_ULTRASSOM) <= 30) {
+            frear();
+            girarDireita();
+            Wait(100);
+            andarPorCm(10);
+            girarEsquerda();
         }
         Release(motorDireitoEsquerdoMutex);
     }
@@ -281,60 +315,8 @@ task main() {
     SetSensorTouch(SENSOR_TOQUE);
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
-    // string msg = "";
-    //  while(msg == "") {
-    //     ReceiveMessage(MAILBOX_RECIVE, true, msg);
-    //  }
+
+    Precedes(desviarObstaculo, executarAcoesSupervisor);
+  
 
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
