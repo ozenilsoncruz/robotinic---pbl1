@@ -43,9 +43,7 @@ Autores:
 #define DISTANCIA_ENTRE_RODAS 18.5
 
 
-float x = 0;
-float y = 0;
-float angulo = 0;
+float distanciaPercorrer = 0;
 
 int corDetectada = 0;
 
@@ -73,8 +71,6 @@ void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
         bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
 
         if (esquerdo_pronto && direito_pronto) {
-            // Off(MOTOR_ESQUERDO);
-            // Off(MOTOR_DIREITO);
             Off(MOTOR_DIREITO_ESQUERDO);
             break;
         }
@@ -91,8 +87,7 @@ void acionarMotores(bool frente=true) {
 
 void girarEmGraus(int grausRotacao) {
     int graus = grausRotacao > 0 ? grausRotacao - 19 : grausRotacao + 19;
-    // ResetRotationCount(MOTOR_DIREITO);
-    // ResetRotationCount(MOTOR_ESQUERDO);
+    
     int direcao = graus > 0 ? 1 : -1; // Determina a direção do giro
     float distancia_percorrida = (DISTANCIA_ENTRE_RODAS * PI * abs(graus));
     float numero_rotacoes = distancia_percorrida / (PI * DIAMETRO_RODA);
@@ -102,10 +97,6 @@ void girarEmGraus(int grausRotacao) {
     
     int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
     int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
-
-    // Acionar motores em direções opostas para girar em torno do eixo
-    // OnFwdReg(MOTOR_ESQUERDO, VELOCIDADE_MEDIA * direcao, OUT_REGMODE_SPEED);
-    // OnFwdReg(MOTOR_DIREITO, VELOCIDADE_MEDIA * (-direcao), OUT_REGMODE_SPEED);
 
     OnFwdSyncEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 100 * direcao, RESET_COUNT);
 
@@ -129,9 +120,10 @@ void girarEmGraus(int grausRotacao) {
 
 
 // Fun??o para andar uma determinada dist?ncia em cent?metros.
-void andarPorCm(float distancia, bool frente=true) {
+void andarPorCm(float distancia) {
     float circunferencia_roda = PI * DIAMETRO_RODA;
     float numero_rotacoes = distancia / circunferencia_roda;
+    bool frente = distancia > 0;
     acionarMotoresPorVoltas(numero_rotacoes, frente);
 }
 
@@ -253,13 +245,11 @@ task mostrarInformacoes() {
         float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
         int distancia = SensorUS(SENSOR_ULTRASSOM);
         int valorLuz = Sensor(SENSOR_COR);
-        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia) + " Obj:");
+        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia));
         TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
         TextOut(0, LCD_LINE3, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
-        TextOut(0, LCD_LINE4, "X:" + NumToStr(x));
-        TextOut(0, LCD_LINE5, "Y:" + NumToStr(y));
-        TextOut(0, LCD_LINE6, "Angulo: " + NumToStr(angulo));
-        TextOut(0, LCD_LINE7, "Garra: " + NumToStr(MotorRotationCount(MOTOR_GARRA)));
+        TextOut(0, LCD_LINE4, "Per" + NumToStr(distanciaPercorrer));
+       
         Wait(100);
     }
 }
@@ -269,7 +259,7 @@ task detectarParede() {
     while (true) {
         Acquire(motorDireitoEsquerdoMutex);
         if (Sensor(SENSOR_TOQUE) == 1) {
-            andarPorCm(10, false);
+            andarPorCm(-10);
             girarDireita();
         }
         Release(motorDireitoEsquerdoMutex);
@@ -285,6 +275,8 @@ task desviarObstaculo() {
             Wait(100);
             andarPorCm(10);
             girarEsquerda();
+            Wait(100);
+            andarPorCm(10);
         }
         Release(motorDireitoEsquerdoMutex);
     }
@@ -318,5 +310,4 @@ task main() {
 
     Precedes(desviarObstaculo, executarAcoesSupervisor);
   
-
-    }
+}
