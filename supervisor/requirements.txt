@@ -2,3 +2,4 @@ fastapi
 uvicorn 
 websockets 
 nxt-python
+git+https://github.com/pybluez/pybluez.git
