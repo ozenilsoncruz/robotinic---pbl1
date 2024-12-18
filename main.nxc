@@ -53,9 +53,40 @@ void enviarMensagem(string msg) {
     SendMessage(MAILBOX_SEND, msg);
 }
 
-void acionarMotoresPorVoltas(float num_voltas, bool frente = true) {
+void girarMotoresGraus(float graus) {
+    int graus_motor = abs(graus)           // Quantos graus os motores devem girar
+    int direcao = graus > 0 ? 1 : -1;     // Determina a direção do movimento
+
+    ResetRotationCount(MOTOR_ESQUERDO);
+    ResetRotationCount(MOTOR_DIREITO);
+
+    // posição inicial de ambos os motores
+    int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+    int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
+
+    OnFwdSyncEx(MOTOR_DIREITO_ESQUERDO, VELOCIDADE_MEDIA, 100 * direcao, RESET_COUNT);
+
+    while (true) {
+        int pos_atual_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
+        int pos_atual_direito = MotorRotationCount(MOTOR_DIREITO);
+
+        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;
+        bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
+
+        if (esquerdo_pronto && direito_pronto) {
+            Off(MOTOR_DIREITO_ESQUERDO);
+            break;
+        }
+        Wait(10);
+    }
+}
+
+void girarMotoresVoltas(float num_voltas, bool frente = true) {
     int graus_motor = 360 * num_voltas;  // Quantos graus os motores devem girar
     int direcao = frente ? 1 : -1;      // Determina a direção do movimento
+
+    ResetRotationCount(MOTOR_ESQUERDO);
+    ResetRotationCount(MOTOR_DIREITO);
 
     // posição inicial de ambos os motores
     int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
@@ -93,8 +124,10 @@ void girarEmGraus(int grausRotacao) {
     float numero_rotacoes = distancia_percorrida / (PI * DIAMETRO_RODA);
     int graus_motor = numero_rotacoes;
 
+    ResetRotationCount(MOTOR_ESQUERDO);
+    ResetRotationCount(MOTOR_DIREITO);
+
     // Posição inicial dos motores
-    
     int pos_inicial_esquerdo = MotorRotationCount(MOTOR_ESQUERDO);
     int pos_inicial_direito = MotorRotationCount(MOTOR_DIREITO);
 
@@ -105,7 +138,7 @@ void girarEmGraus(int grausRotacao) {
         int pos_atual_direito = MotorRotationCount(MOTOR_DIREITO);
 
         // Verificar se ambos os motores atingiram a rotação desejada
-        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;
+        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;   
         bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
 
         if (esquerdo_pronto && direito_pronto) {
@@ -124,7 +157,7 @@ void andarPorCm(float distancia) {
     float circunferencia_roda = PI * DIAMETRO_RODA;
     float numero_rotacoes = distancia / circunferencia_roda;
     bool frente = distancia > 0;
-    acionarMotoresPorVoltas(numero_rotacoes, frente);
+    girarMotoresVoltas(numero_rotacoes, frente);
 }
 
 void andarFrente() {
@@ -147,6 +180,23 @@ void girar180() {
     girarEmGraus(90);
     Wait(100);
     girarEmGraus(90);
+}
+
+void contornarObstaculo() {
+    while(true) {
+        Acquire(motorDireitoEsquerdoMutex);
+        if (Sensor(SENSOR_TOQUE) == 1) {
+            frear();
+            andarPorCm(-10);
+            girarDireita();
+            Wait(100);
+            andarPorCm(10);
+            girarEsquerda();
+            Wait(100);
+            andarPorCm(10);
+        }
+        Release(motorDireitoEsquerdoMutex);
+    }
 }
 
 
@@ -191,14 +241,9 @@ task executarAcoesSupervisor() {
                 if (command == "M") {
                     TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
                     andarPorCm(value);
-                    desviarObstaculo();
                 } else if (command == "R") {
                     TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
                     girarEmGraus(value);
-                } else if (command == "P") {
-                    TextOut(0, LCD_LINE1, "Parando: " + NumToStr(value) + " ms");
-                    frear();
-                    Wait(value);
                 } else {
                     TextOut(0, LCD_LINE1, "Comando inválido");
                 }
@@ -257,34 +302,6 @@ task mostrarInformacoes() {
 }
 
 
-task detectarParede() {
-    while (true) {
-        Acquire(motorDireitoEsquerdoMutex);
-        if (Sensor(SENSOR_TOQUE) == 1) {
-            andarPorCm(-10);
-            girarDireita();
-        }
-        Release(motorDireitoEsquerdoMutex);
-    }
-}
-
-void desviarObstaculo() {
-    while(true) {
-        Acquire(motorDireitoEsquerdoMutex);
-        if (Sensor(SENSOR_TOQUE) == 1) {
-            frear();
-            andarPorCm(-10);
-            girarDireita();
-            Wait(100);
-            andarPorCm(10);
-            girarEsquerda();
-            Wait(100);
-            andarPorCm(10);
-        }
-        Release(motorDireitoEsquerdoMutex);
-    }
-}
-
 
 
 task detectarCor() {
@@ -311,6 +328,6 @@ task main() {
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
 
-    Precedes(executarAcoesSupervisor);
-  
+    StartTask(executarAcoesSupervisor);
+    contornarObstaculo();  
 }
