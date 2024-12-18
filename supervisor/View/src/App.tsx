@@ -1,9 +1,10 @@
 import Map from "./components/Map/Map";
-import { Container } from "./styles";
+import { Container, Title } from "./styles";
 
 function App() {
   return (
     <Container>
+      <Title>Interface Supervisor</Title>
       <Map />
     </Container>
   );

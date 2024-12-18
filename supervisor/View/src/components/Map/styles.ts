@@ -1,86 +1,82 @@
 import styled from "styled-components";
 
-// Container geral engloba tanto o painel de botões quanto o mapa
-export const Container = styled.div`
+export const Container = styled("div")`
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 16px;
 `;
 
-// Área dos botões de controle
-export const ButtonPanel = styled.div`
-  margin-bottom: 12px;
+export const MapContainer = styled("div")`
   display: flex;
-  gap: 8px;
-`;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
 
-export const ControlButton = styled.button`
-  padding: 4px 8px;
-  cursor: pointer;
-`;
-
-export const MapContainer = styled.div`
   position: relative;
   width: 816px;
   height: 540px;
-  background-color: #eee;
-  border: 1px solid #ccc;
+  border: 2px solid black;
+  display: grid;
+  grid-template-columns: 120px 576px 120px;
+  background-color: rgb(233, 233, 233);
 `;
 
-export const Obstacle = styled.div`
-  width: 10px;
+const Station = styled("div")`
+  width: 90px;
+  height: 90px;
+  border: 2px solid black;
+  position: absolute;
+`;
+
+export const StationUp = styled(Station)`
+  &::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 3px;
+    background-color: silver;
+    bottom: -4px;
+    left: 33%;
+    transform: translateY(-50%);
+  }
+`;
+
+export const StationDown = styled(Station)`
+  &::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 3px;
+    background-color: silver;
+    top: -1px;
+    left: 33%;
+    transform: translateY(-50%);
+  }
+`;
+
+export const Robot = styled("div")`
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  border-radius: 20%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url("/public/assets/robot.png") no-repeat center;
+  background-size: contain;
+`;
+
+export const Obstacle = styled("div")`
+  width: 15px;
   height: 10px;
-  background-color: red;
-  position: absolute;
-  border-radius: 2px;
-`;
-
-export const Robot = styled.div`
-  width: 16px;
-  height: 16px;
-  background-color: green;
-  position: absolute;
-  border-radius: 50%;
-  cursor: grab;  /* Indica que pode ser arrastado */
-`;
-
-export const StationUp = styled.div`
-  width: 20px;
-  height: 20px;
-  background-color: orange;
-  position: absolute;
-  cursor: pointer;
-`;
-
-export const StationDown = styled.div`
-  width: 20px;
-  height: 20px;
-  background-color: purple;
-  position: absolute;
-  cursor: pointer;
-`;
-
-export const Line = styled.div`
-  width: 2px;
-  background-color: black;
-  position: absolute;
-`;
-
-export const Midpoint = styled.div`
-  width: 6px;
-  height: 6px;
-  background-color: blue;
-  position: absolute;
-  border-radius: 50%;
-`;
-
-export const EdgeLine = styled.div`
-  position: absolute;
-  background-color: #999; 
-`;
-
-export const PathLine = styled.div`
   position: absolute;
   background-color: green;
-  opacity: 0.7;
+  background-size: cover;
 `;
