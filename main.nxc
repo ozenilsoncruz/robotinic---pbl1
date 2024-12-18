@@ -158,6 +158,7 @@ task executarAcoesSupervisor() {
         // Recebe a mensagem via Bluetooth
         ReceiveMessage(MAILBOX_RECIVE, true, msg);
         //Tipo de mensagem esperada -> M:10,R:90,P:1000
+        msg = "M:10";
         if (msg != "") {
             Acquire(motorDireitoEsquerdoMutex);
            TextOut(0, LCD_LINE1, "Msg");
@@ -190,6 +191,7 @@ task executarAcoesSupervisor() {
                 if (command == "M") {
                     TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
                     andarPorCm(value);
+                    desviarObstaculo();
                 } else if (command == "R") {
                     TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
                     girarEmGraus(value);
@@ -200,14 +202,14 @@ task executarAcoesSupervisor() {
                 } else {
                     TextOut(0, LCD_LINE1, "Comando inválido");
                 }
-
+                
                 startStr += commaPos + 1;
             }
 
             msg = "";
         }
         Release(motorDireitoEsquerdoMutex);
-        Wait(500);
+        Wait(50);
     }
 }
 
@@ -266,11 +268,12 @@ task detectarParede() {
     }
 }
 
-task desviarObstaculo() {
+void desviarObstaculo() {
     while(true) {
         Acquire(motorDireitoEsquerdoMutex);
-        if (SensorUS(SENSOR_ULTRASSOM) <= 30) {
+        if (Sensor(SENSOR_TOQUE) == 1) {
             frear();
+            andarPorCm(-10);
             girarDireita();
             Wait(100);
             andarPorCm(10);
@@ -308,6 +311,6 @@ task main() {
     SetSensorUltrasonic(SENSOR_ULTRASSOM);
 
 
-    Precedes(desviarObstaculo, executarAcoesSupervisor);
+    Precedes(executarAcoesSupervisor);
   
 }
