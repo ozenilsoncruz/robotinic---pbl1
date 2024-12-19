@@ -1,5 +1,5 @@
 // Map.tsx
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   Container,
   MapContainer,
@@ -142,10 +142,10 @@ function Map() {
   // Estado para controle das linhas de divisão verticais
   const [showDivisionLines, setShowDivisionLines] = useState<boolean>(true);
 
-  // Computar obstáculos a partir da posição do robô
-  const filteredObstacles = obstacles.filter(
-    (obs) => obs.x + obs.width >= robotPosition.x
-  );
+  // Memorizar obstáculos a partir da posição do robô para evitar re-renderizações desnecessárias
+  const filteredObstacles = useMemo(() => {
+    return obstacles.filter((obs) => obs.x + obs.width >= robotPosition.x);
+  }, [obstacles, robotPosition.x]);
 
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
