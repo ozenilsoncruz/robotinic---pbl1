@@ -64,7 +64,7 @@ function Map() {
 
   // Estado da posição do robô
   const [robotPosition, setRobotPosition] = useState({
-    x: 40, // Inicialmente centralizado no mapa   #ROBo
+    x:  60, // Inicialmente centralizado no mapa   #ROBo
     y: mapLimits.height / 2,
   });
 
@@ -83,13 +83,13 @@ function Map() {
   const [obstacles, setObstacles] = useState<ObstacleType[]>([
     // Estação superior 1 (paredes)
     {
-      x: 200,
+      x: 255,
       y: 0,
       width: stationWallSize.width,
       height: stationWallSize.height,
     },
     {
-      x: 300,
+      x: 345,
       y: 0,
       width: stationWallSize.width,
       height: stationWallSize.height,
@@ -97,13 +97,13 @@ function Map() {
 
     // Estação superior 2 (paredes)
     {
-      x: 500,
+      x: 462,
       y: 0,
       width: stationWallSize.width,
       height: stationWallSize.height,
     },
     {
-      x: 600,
+      x: 552,
       y: 0,
       width: stationWallSize.width,
       height: stationWallSize.height,
@@ -111,13 +111,13 @@ function Map() {
 
     // Estação inferior 1 (paredes)
     {
-      x: 200,
+      x: 255,
       y: mapLimits.height - stationWallSize.height,
       width: stationWallSize.width,
       height: stationWallSize.height,
     },
     {
-      x: 300,
+      x: 345,
       y: mapLimits.height - stationWallSize.height,
       width: stationWallSize.width,
       height: stationWallSize.height,
@@ -125,13 +125,13 @@ function Map() {
 
     // Estação inferior 2 (paredes)
     {
-      x: 500,
+      x: 462,
       y: mapLimits.height - stationWallSize.height,
       width: stationWallSize.width,
       height: stationWallSize.height,
     },
     {
-      x: 600,
+      x: 552,
       y: mapLimits.height - stationWallSize.height,
       width: stationWallSize.width,
       height: stationWallSize.height,
@@ -194,7 +194,7 @@ function Map() {
     return () => {
       ws.close();
     };
-  }, []);
+  }, [path]);
 
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
@@ -207,8 +207,8 @@ function Map() {
     const rect = (
       event.currentTarget as HTMLDivElement
     ).getBoundingClientRect();
-    const x = Number((event.clientX - rect.left).toFixed(2));
-    const y = Number((event.clientY - rect.top).toFixed(2));
+    const x = Number(Math.trunc((event.clientX - rect.left)));
+    const y = Number(Math.trunc((event.clientY - rect.top)));
     const width = 25;
     const height = 25;
 
@@ -639,13 +639,6 @@ function Map() {
     );
   }
 
-  // Função heurística (distância Euclidiana)
-  function heuristic(a: CellType, b: CellType): number {
-    const aCenter = { x: a.x + a.width / 2, y: a.y + a.height / 2 };
-    const bCenter = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-    return Math.hypot(aCenter.x - bCenter.x, aCenter.y - bCenter.y);
-  }
-
   // Função para calcular a distância entre duas células
   function distance(a: CellType, b: CellType): number {
     const aCenter = { x: a.x + a.width / 2, y: a.y + a.height / 2 };
@@ -667,8 +660,8 @@ function Map() {
     openSet.push({
       cellId: startCell.id,
       g: 0,
-      h: heuristic(startCell, endCell),
-      f: heuristic(startCell, endCell),
+      h: distance(startCell, endCell),
+      f: distance(startCell, endCell),
       parent: null,
     });
 
@@ -722,7 +715,7 @@ function Map() {
         ) {
           cameFrom[neighborId] = current.cellId;
           gScores[neighborId] = tentativeG;
-          const h = heuristic(neighborCell, endCell);
+          const h = distance(neighborCell, endCell);
           const f = tentativeG + h;
 
           // Verificar se o vizinho já está no openSet
@@ -835,11 +828,11 @@ function Map() {
       }
 
       const movement: { distance: number; angle?: number } = {
-        distance: Number(distanceBetween.toFixed(2)),
+        distance: Number(Math.trunc(distanceBetween)),
       };
 
       if (angleToTurn !== undefined) {
-        movement.angle = Number(angleToTurn.toFixed(2));
+        movement.angle = Number(Math.trunc(angleToTurn));
       }
 
       movements.push(movement);
@@ -852,7 +845,7 @@ function Map() {
       movementList += `Passo ${index + 1}:\n`;
       movementList += `- Distância: ${move.distance} pixels\n`;
       if (move.angle !== undefined) {
-        movementList += `- Ângulo de Rotação: ${move.angle}°\n`;
+        movementList += `- Ângulo de Rotação: ${-move.angle}°\n`;
       }
       movementList += "\n";
     });
@@ -869,16 +862,18 @@ function Map() {
         accumulatedDistance += distance;
       } else {
         if (accumulatedDistance > 0) {
-          compactedMovements += `M:${(accumulatedDistance / 3).toFixed(2)},`;
+          compactedMovements += `M:${Math.trunc((accumulatedDistance / 3))},`;
         }
-        compactedMovements += `R:${angle.toFixed(2)},`;
+        if(angle !== 0){
+          compactedMovements += `R:${-Math.trunc(angle)},`;
         accumulatedDistance = distance;
+        }
       }
 
       previousAngle = angle ?? 0;
 
       if (index === movements.length - 1 && accumulatedDistance > 0) {
-        compactedMovements += `M:${(accumulatedDistance / 3).toFixed(2)}`;
+        compactedMovements += `M:${Math.trunc((accumulatedDistance / 3))}`;
       }
     });
 
