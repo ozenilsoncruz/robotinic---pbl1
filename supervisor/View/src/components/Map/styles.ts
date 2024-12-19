@@ -87,7 +87,6 @@ export const PathLine = styled.polyline`
   stroke-width: 2;
 `;
 
-
 export const PathSVG = styled.svg`
   position: absolute;
   top: 0;
@@ -95,4 +94,18 @@ export const PathSVG = styled.svg`
   width: 816px; /* Deve corresponder à largura do mapa */
   height: 540px; /* Deve corresponder à altura do mapa */
   pointer-events: none; /* Permite que os eventos de mouse passem através do SVG */
+`;
+
+export const StyledSelect = styled("select")`
+  height: 32px;
+  border-radius: 16px;
+  border: 2px solid #3a86ff;
+  font-family: "Roboto";
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.1s ease-out;
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
 `;

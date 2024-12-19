@@ -1,5 +1,11 @@
 // Map.tsx
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   Container,
   MapContainer,
@@ -7,6 +13,7 @@ import {
   Robot,
   PathLine,
   PathSVG,
+  StyledSelect,
 } from "./styles";
 import Button from "../Button";
 
@@ -147,6 +154,8 @@ function Map() {
     return obstacles.filter((obs) => obs.x + obs.width >= robotPosition.x);
   }, [obstacles, robotPosition.x]);
 
+  const [pathMode, setPathMode] = useState<"neighbors" | "all">("neighbors");
+
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     // Se um drag ocorreu, não adicionar obstáculo
@@ -155,7 +164,9 @@ function Map() {
       return;
     }
 
-    const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const rect = (
+      event.currentTarget as HTMLDivElement
+    ).getBoundingClientRect();
     const x = Number((event.clientX - rect.left).toFixed(2));
     const y = Number((event.clientY - rect.top).toFixed(2));
     const width = 10;
@@ -178,7 +189,10 @@ function Map() {
 
     const newObstacle = { x, y, width, height };
 
-    setObstacles((prevObjects: ObstacleType[]) => [...prevObjects, newObstacle]);
+    setObstacles((prevObjects: ObstacleType[]) => [
+      ...prevObjects,
+      newObstacle,
+    ]);
   }
 
   // Geração das linhas verticais
@@ -201,7 +215,9 @@ function Map() {
   }, [filteredObstacles]);
 
   // Handlers para arrastar o robô
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const handleMouseDown = (
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+  ) => {
     event.stopPropagation(); // Evita que o click no robô adicione um obstáculo
     event.preventDefault(); // Previne comportamentos padrão
 
@@ -233,8 +249,14 @@ function Map() {
       // Verificar colisão com obstáculos
       const robotRadius = 20; // Ajustado para o tamanho do robô (40px de diâmetro)
       const collision = obstacles.some((obstacle) => {
-        const closestX = Math.max(obstacle.x, Math.min(newX, obstacle.x + obstacle.width));
-        const closestY = Math.max(obstacle.y, Math.min(newY, obstacle.y + obstacle.height));
+        const closestX = Math.max(
+          obstacle.x,
+          Math.min(newX, obstacle.x + obstacle.width)
+        );
+        const closestY = Math.max(
+          obstacle.y,
+          Math.min(newY, obstacle.y + obstacle.height)
+        );
         const distance = Math.hypot(newX - closestX, newY - closestY);
         return distance < robotRadius;
       });
@@ -243,7 +265,14 @@ function Map() {
         setRobotPosition({ x: newX, y: newY });
       }
     },
-    [isDragging, dragStart, robotStart, mapLimits.width, mapLimits.height, obstacles]
+    [
+      isDragging,
+      dragStart,
+      robotStart,
+      mapLimits.width,
+      mapLimits.height,
+      obstacles,
+    ]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -269,7 +298,9 @@ function Map() {
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // Handler de click no Robot para evitar propagação
-  const handleRobotClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const handleRobotClick = (
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+  ) => {
     event.stopPropagation();
   };
 
@@ -281,7 +312,11 @@ function Map() {
     // [4,5] = estação inferior 1
     // [6,7] = estação inferior 2
 
-    function createStationPair(obst1: ObstacleType, obst2: ObstacleType, name: string): StationType {
+    function createStationPair(
+      obst1: ObstacleType,
+      obst2: ObstacleType,
+      name: string
+    ): StationType {
       // Estação é a área livre ENTRE os obstáculos verticais
       const left = obst1.x + obst1.width;
       const right = obst2.x;
@@ -301,13 +336,21 @@ function Map() {
     const newStations: StationType[] = [];
     if (obstacles.length >= 8) {
       // Estação Superior 1
-      newStations.push(createStationPair(obstacles[0], obstacles[1], "Estação Superior 1"));
+      newStations.push(
+        createStationPair(obstacles[0], obstacles[1], "Estação Superior 1")
+      );
       // Estação Superior 2
-      newStations.push(createStationPair(obstacles[2], obstacles[3], "Estação Superior 2"));
+      newStations.push(
+        createStationPair(obstacles[2], obstacles[3], "Estação Superior 2")
+      );
       // Estação Inferior 1
-      newStations.push(createStationPair(obstacles[4], obstacles[5], "Estação Inferior 1"));
+      newStations.push(
+        createStationPair(obstacles[4], obstacles[5], "Estação Inferior 1")
+      );
       // Estação Inferior 2
-      newStations.push(createStationPair(obstacles[6], obstacles[7], "Estação Inferior 2"));
+      newStations.push(
+        createStationPair(obstacles[6], obstacles[7], "Estação Inferior 2")
+      );
     }
 
     setStations(newStations);
@@ -316,6 +359,64 @@ function Map() {
   const handleSelectStation = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedStation(event.target.value);
   };
+
+  type Rectangle = { x: number; y: number; width: number; height: number };
+  type Line = { x1: number; y1: number; x2: number; y2: number };
+
+  // Verifica se duas linhas se intersectam.
+  function linesIntersect(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x3: number,
+    y3: number,
+    x4: number,
+    y4: number
+  ): boolean {
+    // Verifica a orientação de três pontos (A, B, C) para determinar se eles estão em sentido anti-horário.
+    function isCounterClockwise(
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      cx: number,
+      cy: number
+    ): boolean {
+      return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
+    }
+
+    return (
+      isCounterClockwise(x1, y1, x3, y3, x4, y4) !==
+        isCounterClockwise(x2, y2, x3, y3, x4, y4) &&
+      isCounterClockwise(x1, y1, x2, y2, x3, y3) !==
+        isCounterClockwise(x1, y1, x2, y2, x4, y4)
+    );
+  }
+
+  // Verifica se uma linha intersecta um retângulo.
+  function lineIntersectsRectangle(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    rect: Rectangle
+  ): boolean {
+    const { x, y, width, height } = rect;
+
+    // Retas do retângulo
+    const rectLines: Line[] = [
+      { x1: x, y1: y, x2: x + width, y2: y },
+      { x1: x, y1: y, x2: x, y2: y + height },
+      { x1: x + width, y1: y, x2: x + width, y2: y + height },
+      { x1: x, y1: y + height, x2: x + width, y2: y + height },
+    ];
+
+    // Verificar se a linha (x1, y1, x2, y2) cruza alguma das linhas do retângulo
+    return rectLines.some((line) =>
+      linesIntersect(x1, y1, x2, y2, line.x1, line.y1, line.x2, line.y2)
+    );
+  }
 
   // Função para realizar a decomposição em células exatas
   useEffect(() => {
@@ -329,20 +430,19 @@ function Map() {
       let cellId = 0;
 
       // Adicionar linhas de borda do mapa
-      const allVerticalLines = [0, ...divisionLines, mapWidth].sort((a, b) => a - b);
+      const allVerticalLines = [0, ...divisionLines, mapWidth].sort(
+        (a, b) => a - b
+      );
 
-      // Para cada par de linhas verticais consecutivas
       for (let i = 0; i < allVerticalLines.length - 1; i++) {
         const x1 = allVerticalLines[i];
         const x2 = allVerticalLines[i + 1];
         const width = x2 - x1;
 
-        // Coletar obstáculos que intersectam este intervalo vertical
         const relevantObstacles = obstacles.filter(
           (obs) => !(obs.x + obs.width <= x1) && !(obs.x >= x2)
         );
 
-        // Adicionar linhas horizontais baseadas nos obstáculos
         const horizontalLinesSet = new Set<number>();
         horizontalLinesSet.add(0);
         horizontalLinesSet.add(mapHeight);
@@ -352,18 +452,17 @@ function Map() {
           horizontalLinesSet.add(obs.y + obs.height);
         });
 
-        const allHorizontalLines = Array.from(horizontalLinesSet).sort((a, b) => a - b);
+        const allHorizontalLines = Array.from(horizontalLinesSet).sort(
+          (a, b) => a - b
+        );
 
-        // Para cada par de linhas horizontais consecutivas
         for (let j = 0; j < allHorizontalLines.length - 1; j++) {
           const y1 = allHorizontalLines[j];
           const y2 = allHorizontalLines[j + 1];
           const height = y2 - y1;
 
-          // Verificar se a célula [x1, y1, width, height] está livre
           const cellRect = { x: x1, y: y1, width, height };
 
-          // Verificar se a célula colide com algum obstáculo
           const isFree = !obstacles.some((obs) => {
             return (
               obs.x < cellRect.x + cellRect.width &&
@@ -387,29 +486,83 @@ function Map() {
         }
       }
 
-      // Definir vizinhos para cada célula
-      cells.forEach((cell) => {
-        cells.forEach((otherCell) => {
-          if (cell.id === otherCell.id) return;
+      if (pathMode === "neighbors") {
+        cells.forEach((cell) => {
+          cells.forEach((otherCell) => {
+            if (cell.id === otherCell.id) return;
 
-          // Verificar se as células são adjacentes (compartilham uma borda)
-          const adjacent =
-            ((cell.x + cell.width === otherCell.x || otherCell.x + otherCell.width === cell.x) &&
-              !(
-                cell.y + cell.height <= otherCell.y ||
-                otherCell.y + otherCell.height <= cell.y
-              )) ||
-            ((cell.y + cell.height === otherCell.y || otherCell.y + otherCell.height === cell.y) &&
-              !(
-                cell.x + cell.width <= otherCell.x ||
-                otherCell.x + otherCell.width <= cell.x
-              ));
+            const adjacent =
+              ((cell.x + cell.width === otherCell.x ||
+                otherCell.x + otherCell.width === cell.x) &&
+                !(
+                  cell.y + cell.height <= otherCell.y ||
+                  otherCell.y + otherCell.height <= cell.y
+                )) ||
+              ((cell.y + cell.height === otherCell.y ||
+                otherCell.y + otherCell.height === cell.y) &&
+                !(
+                  cell.x + cell.width <= otherCell.x ||
+                  otherCell.x + otherCell.width <= cell.x
+                ));
 
-          if (adjacent) {
-            cell.neighbors.push(otherCell.id);
-          }
+            if (adjacent) {
+              const lineStart = {
+                x: cell.x + cell.width / 2,
+                y: cell.y + cell.height / 2,
+              };
+              const lineEnd = {
+                x: otherCell.x + otherCell.width / 2,
+                y: otherCell.y + otherCell.height / 2,
+              };
+
+              // Verificar se o caminho entre as células cruza algum obstáculo
+              const crossesObstacle = obstacles.some((obstacle) =>
+                lineIntersectsRectangle(
+                  lineStart.x,
+                  lineStart.y,
+                  lineEnd.x,
+                  lineEnd.y,
+                  obstacle
+                )
+              );
+
+              if (!crossesObstacle) {
+                cell.neighbors.push(otherCell.id);
+              }
+            }
+          });
         });
-      });
+      } else if (pathMode === "all") {
+        cells.forEach((cell) => {
+          cells.forEach((otherCell) => {
+            if (cell.id !== otherCell.id) {
+              const cellCenter = {
+                x: cell.x + cell.width / 2,
+                y: cell.y + cell.height / 2,
+              };
+              const otherCellCenter = {
+                x: otherCell.x + otherCell.width / 2,
+                y: otherCell.y + otherCell.height / 2,
+              };
+
+              // Verificar se a linha entre os centros cruza obstáculos
+              const intersects = obstacles.some((obs) =>
+                lineIntersectsRectangle(
+                  cellCenter.x,
+                  cellCenter.y,
+                  otherCellCenter.x,
+                  otherCellCenter.y,
+                  obs
+                )
+              );
+
+              if (!intersects) {
+                cell.neighbors.push(otherCell.id);
+              }
+            }
+          });
+        });
+      }
 
       return cells;
     }
@@ -421,8 +574,16 @@ function Map() {
       mapLimits.height
     );
 
+    console.log(generatedCells, "cells");
+
     setCells(generatedCells);
-  }, [divisionLines, filteredObstacles, mapLimits.width, mapLimits.height]);
+  }, [
+    divisionLines,
+    filteredObstacles,
+    mapLimits.width,
+    mapLimits.height,
+    pathMode,
+  ]);
 
   // Função para encontrar a célula que contém um ponto
   function findCellContainingPoint(
@@ -488,7 +649,10 @@ function Map() {
         const path: CellType[] = [];
         let currentId = current.cellId;
 
-        while (currentId !== null && cameFrom.hasOwnProperty(currentId)) {
+        while (
+          currentId !== null &&
+          Object.prototype.hasOwnProperty.call(cameFrom, currentId)
+        ) {
           const cell = cells.find((c) => c.id === currentId);
           if (cell) path.push(cell);
           currentId = cameFrom[currentId];
@@ -514,14 +678,19 @@ function Map() {
         const neighborCell = cells.find((c) => c.id === neighborId)!;
         const tentativeG = current.g + distance(currentCell, neighborCell);
 
-        if (!gScores.hasOwnProperty(neighborId) || tentativeG < gScores[neighborId]) {
+        if (
+          !Object.prototype.hasOwnProperty.call(gScores, neighborId) ||
+          tentativeG < gScores[neighborId]
+        ) {
           cameFrom[neighborId] = current.cellId;
           gScores[neighborId] = tentativeG;
           const h = heuristic(neighborCell, endCell);
           const f = tentativeG + h;
 
           // Verificar se o vizinho já está no openSet
-          const existingNode = openSet.find((node) => node.cellId === neighborId);
+          const existingNode = openSet.find(
+            (node) => node.cellId === neighborId
+          );
           if (!existingNode) {
             openSet.push({
               cellId: neighborId,
@@ -576,6 +745,7 @@ function Map() {
 
     if (!foundPath) {
       alert("Caminho não encontrado.");
+      setPath([]);
       return;
     }
 
@@ -613,7 +783,12 @@ function Map() {
       );
 
       // Calcular o ângulo entre previousPoint e currentPoint
-      const angle = Math.atan2(currentPoint.y - previousPoint.y, currentPoint.x - previousPoint.x) * (180 / Math.PI);
+      const angle =
+        Math.atan2(
+          currentPoint.y - previousPoint.y,
+          currentPoint.x - previousPoint.x
+        ) *
+        (180 / Math.PI);
 
       let angleToTurn: number | undefined = undefined;
 
@@ -661,26 +836,41 @@ function Map() {
 
   return (
     <Container>
-      <div style={{ marginBottom: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
-        <select value={selectedStation} onChange={handleSelectStation}>
+      <div
+        style={{
+          marginBottom: "10px",
+          display: "flex",
+          gap: "10px",
+          alignItems: "center",
+        }}
+      >
+        <StyledSelect value={selectedStation} onChange={handleSelectStation}>
           <option value="">Selecione uma Estação</option>
           {stations.map((st, i) => (
             <option key={i} value={st.name}>
               {st.name}
             </option>
           ))}
-        </select>
+        </StyledSelect>
         <Button onClick={handleTracePath}>Traçar Caminho</Button>
 
         {/* Select para controlar a visibilidade das linhas de divisão verticais */}
-        <select
+        <StyledSelect
           value={showDivisionLines ? "show" : "hide"}
           onChange={(e) => setShowDivisionLines(e.target.value === "show")}
         >
           <option value="show">Mostrar Linhas de Divisão</option>
           <option value="hide">Esconder Linhas de Divisão</option>
-        </select>
+        </StyledSelect>
       </div>
+
+      <StyledSelect
+        value={pathMode}
+        onChange={(e) => setPathMode(e.target.value as "neighbors" | "all")}
+      >
+        <option value="neighbors">Apenas Vizinhos</option>
+        <option value="all">Todos os Caminhos</option>
+      </StyledSelect>
 
       <MapContainer
         onClick={handleMapClick}
