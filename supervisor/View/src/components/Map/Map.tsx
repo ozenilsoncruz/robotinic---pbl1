@@ -363,63 +363,63 @@ function Map() {
   type Rectangle = { x: number; y: number; width: number; height: number };
   type Line = { x1: number; y1: number; x2: number; y2: number };
 
-  // Verifica se duas linhas se intersectam.
-  function linesIntersect(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    x3: number,
-    y3: number,
-    x4: number,
-    y4: number
-  ): boolean {
-    // Verifica a orientação de três pontos (A, B, C) para determinar se eles estão em sentido anti-horário.
-    function isCounterClockwise(
-      ax: number,
-      ay: number,
-      bx: number,
-      by: number,
-      cx: number,
-      cy: number
-    ): boolean {
-      return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
-    }
-
-    return (
-      isCounterClockwise(x1, y1, x3, y3, x4, y4) !==
-        isCounterClockwise(x2, y2, x3, y3, x4, y4) &&
-      isCounterClockwise(x1, y1, x2, y2, x3, y3) !==
-        isCounterClockwise(x1, y1, x2, y2, x4, y4)
-    );
-  }
-
-  // Verifica se uma linha intersecta um retângulo.
-  function lineIntersectsRectangle(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    rect: Rectangle
-  ): boolean {
-    const { x, y, width, height } = rect;
-
-    // Retas do retângulo
-    const rectLines: Line[] = [
-      { x1: x, y1: y, x2: x + width, y2: y },
-      { x1: x, y1: y, x2: x, y2: y + height },
-      { x1: x + width, y1: y, x2: x + width, y2: y + height },
-      { x1: x, y1: y + height, x2: x + width, y2: y + height },
-    ];
-
-    // Verificar se a linha (x1, y1, x2, y2) cruza alguma das linhas do retângulo
-    return rectLines.some((line) =>
-      linesIntersect(x1, y1, x2, y2, line.x1, line.y1, line.x2, line.y2)
-    );
-  }
-
   // Função para realizar a decomposição em células exatas
   useEffect(() => {
+    // Verifica se duas linhas se intersectam.
+    function linesIntersect(
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      x3: number,
+      y3: number,
+      x4: number,
+      y4: number
+    ): boolean {
+      // Verifica a orientação de três pontos (A, B, C) para determinar se eles estão em sentido anti-horário.
+      function isCounterClockwise(
+        ax: number,
+        ay: number,
+        bx: number,
+        by: number,
+        cx: number,
+        cy: number
+      ): boolean {
+        return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
+      }
+
+      return (
+        isCounterClockwise(x1, y1, x3, y3, x4, y4) !==
+          isCounterClockwise(x2, y2, x3, y3, x4, y4) &&
+        isCounterClockwise(x1, y1, x2, y2, x3, y3) !==
+          isCounterClockwise(x1, y1, x2, y2, x4, y4)
+      );
+    }
+
+    // Verifica se uma linha intersecta um retângulo.
+    function lineIntersectsRectangle(
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      rect: Rectangle
+    ): boolean {
+      const { x, y, width, height } = rect;
+
+      // Retas do retângulo
+      const rectLines: Line[] = [
+        { x1: x, y1: y, x2: x + width, y2: y },
+        { x1: x, y1: y, x2: x, y2: y + height },
+        { x1: x + width, y1: y, x2: x + width, y2: y + height },
+        { x1: x, y1: y + height, x2: x + width, y2: y + height },
+      ];
+
+      // Verificar se a linha (x1, y1, x2, y2) cruza alguma das linhas do retângulo
+      return rectLines.some((line) =>
+        linesIntersect(x1, y1, x2, y2, line.x1, line.y1, line.x2, line.y2)
+      );
+    }
+
     function exactCellDecomposition(
       divisionLines: number[],
       obstacles: ObstacleType[],
@@ -574,8 +574,6 @@ function Map() {
       mapLimits.height
     );
 
-    console.log(generatedCells, "cells");
-
     setCells(generatedCells);
   }, [
     divisionLines,
@@ -720,14 +718,12 @@ function Map() {
       return;
     }
 
-    // Encontrar a estação selecionada
     const targetStation = stations.find((st) => st.name === selectedStation);
     if (!targetStation) {
       alert("Estação selecionada não encontrada.");
       return;
     }
 
-    // Encontrar as células que contêm o robô e a estação
     const robotCell = findCellContainingPoint(robotPosition, cells);
     const stationCenter = {
       x: targetStation.x + targetStation.width / 2,
@@ -740,7 +736,6 @@ function Map() {
       return;
     }
 
-    // Encontrar o caminho usando A*
     const foundPath = aStar(cells, robotCell, stationCell);
 
     if (!foundPath) {
@@ -749,9 +744,6 @@ function Map() {
       return;
     }
 
-    // Converter o caminho de células para uma lista de pontos
-    // Incluir a posição exata do robô como o primeiro ponto
-    // Incluir o centro da estação como o último ponto
     const pathPoints: { x: number; y: number }[] = [
       { x: robotPosition.x, y: robotPosition.y },
     ];
@@ -764,25 +756,20 @@ function Map() {
     });
 
     pathPoints.push(stationCenter);
-
     setPath(pathPoints);
 
-    // Gerar a lista de distâncias e ângulos
     const movements: { distance: number; angle?: number }[] = [];
-
     let previousPoint = pathPoints[0];
     let previousAngle: number | null = null;
 
     for (let i = 1; i < pathPoints.length; i++) {
       const currentPoint = pathPoints[i];
 
-      // Calcular a distância entre previousPoint e currentPoint
       const distanceBetween = Math.hypot(
         currentPoint.x - previousPoint.x,
         currentPoint.y - previousPoint.y
       );
 
-      // Calcular o ângulo entre previousPoint e currentPoint
       const angle =
         Math.atan2(
           currentPoint.y - previousPoint.y,
@@ -792,18 +779,21 @@ function Map() {
 
       let angleToTurn: number | undefined = undefined;
 
-      if (previousAngle !== null) {
+      if (i === 1) {
+        // Primeiro movimento: calcular rotação inicial
+        const initialAngle = 0; // Assuma o robô inicializado em 0° (ou defina a orientação inicial do robô)
+        angleToTurn = angle - initialAngle;
+
+        if (angleToTurn > 180) angleToTurn -= 360;
+        if (angleToTurn < -180) angleToTurn += 360;
+      } else if (previousAngle !== null) {
+        // Calcular a rotação em passos subsequentes
         angleToTurn = angle - previousAngle;
 
-        // Ajustar o ângulo para ficar entre -180 e 180 graus
-        if (angleToTurn > 180) {
-          angleToTurn -= 360;
-        } else if (angleToTurn < -180) {
-          angleToTurn += 360;
-        }
+        if (angleToTurn > 180) angleToTurn -= 360;
+        if (angleToTurn < -180) angleToTurn += 360;
       }
 
-      // Adicionar ao movimento
       const movement: { distance: number; angle?: number } = {
         distance: Number(distanceBetween.toFixed(2)),
       };
@@ -813,13 +803,10 @@ function Map() {
       }
 
       movements.push(movement);
-
-      // Atualizar para o próximo passo
       previousPoint = currentPoint;
       previousAngle = angle;
     }
 
-    // Formatar a lista de movimentos
     let movementList = "";
     movements.forEach((move, index) => {
       movementList += `Passo ${index + 1}:\n`;
@@ -830,8 +817,32 @@ function Map() {
       movementList += "\n";
     });
 
-    // Exibir a lista de movimentos em um alerta
     console.log(`Movimentos:\n\n${movementList}`);
+
+    let compactedMovements = "";
+    let accumulatedDistance = 0;
+
+    movements.forEach((move, index) => {
+      const { distance, angle } = move;
+
+      if (angle === undefined || angle === previousAngle) {
+        accumulatedDistance += distance;
+      } else {
+        if (accumulatedDistance > 0) {
+          compactedMovements += `M:${(accumulatedDistance / 3).toFixed(2)},`;
+        }
+        compactedMovements += `R:${angle.toFixed(2)},`;
+        accumulatedDistance = distance;
+      }
+
+      previousAngle = angle ?? 0;
+
+      if (index === movements.length - 1 && accumulatedDistance > 0) {
+        compactedMovements += `M:${(accumulatedDistance / 3).toFixed(2)}`;
+      }
+    });
+
+    console.log(compactedMovements);
   };
 
   return (
