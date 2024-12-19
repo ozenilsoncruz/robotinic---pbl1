@@ -1,8 +1,6 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 import asyncio
-from random import randint
-from json import loads
 from typing import Tuple
 from math import pi, cos, sin
 
@@ -17,7 +15,7 @@ DISTANCIA_ENTRE_RODAS = 18.5
 ENDERECO = "00:16:53:09:70:AA"
 
 
-robot_position = {"x": 20, "y": 50}
+robot_position = {}
 angulo = 0
 
 @app.get("/")
@@ -65,7 +63,8 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close()
         return
 
-    enviar_msg(brick, "Iniciar")
+    msg = await websocket.receive_text() # receber mensagem do websocket React 
+    enviar_msg(brick, msg)
 
     try:
         while True:

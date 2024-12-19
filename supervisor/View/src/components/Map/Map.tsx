@@ -156,6 +156,46 @@ function Map() {
 
   const [pathMode, setPathMode] = useState<"neighbors" | "all">("neighbors");
 
+  // ---- WEBSOCKET ----
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    // Estabelece a conexão WebSocket com o servidor Python
+    const ws = new WebSocket("ws://localhost:8000/ws/position");
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("Conexão WebSocket estabelecida com o servidor.");
+      // Poderíamos enviar uma mensagem inicial se necessário
+      // ws.send("mensagem inicial");
+    };
+
+    ws.onmessage = (event) => {
+      // O servidor Python enviará as posições atualizadas do robô em JSON:
+      // Ex: { "x": 100.23, "y": 200.45 }
+      try {
+        const data = JSON.parse(event.data);
+        if (data.x !== undefined && data.y !== undefined) {
+          setRobotPosition({ x: data.x, y: data.y });
+        }
+      } catch (error) {
+        console.error("Falha ao analisar a mensagem do servidor:", error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Conexão WebSocket fechada.");
+    };
+
+    ws.onerror = (error) => {
+      console.error("Erro no WebSocket:", error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     // Se um drag ocorreu, não adicionar obstáculo
@@ -843,6 +883,13 @@ function Map() {
     });
 
     console.log(compactedMovements);
+
+    // ---- ENVIO VIA WEBSOCKET PARA O SERVIDOR PYTHON ----
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(compactedMovements);
+    } else {
+      console.error("WebSocket não está aberto para envio de movimentos.");
+    }
   };
 
   return (
