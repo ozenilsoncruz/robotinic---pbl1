@@ -1,5 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Container, MapContainer, Obstacle, Robot, PathLine, PathSVG } from "./styles";
+// Map.tsx
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import {
+  Container,
+  MapContainer,
+  Obstacle,
+  Robot,
+  PathLine,
+  PathSVG,
+} from "./styles";
 import Button from "../Button";
 
 // Tipos para obstáculos, estações e células
@@ -49,7 +57,7 @@ function Map() {
 
   // Estado da posição do robô
   const [robotPosition, setRobotPosition] = useState({
-    x: 0,
+    x: 40, // Inicialmente centralizado no mapa
     y: mapLimits.height / 2,
   });
 
@@ -130,6 +138,9 @@ function Map() {
   // Estado para células e caminho
   const [cells, setCells] = useState<CellType[]>([]);
   const [path, setPath] = useState<{ x: number; y: number }[]>([]);
+
+  // Estado para controle das linhas de divisão verticais
+  const [showDivisionLines, setShowDivisionLines] = useState<boolean>(true);
 
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
@@ -393,14 +404,19 @@ function Map() {
   }, [divisionLines, obstacles, mapLimits.width, mapLimits.height]);
 
   // Função para encontrar a célula que contém um ponto
-  function findCellContainingPoint(point: { x: number; y: number }, cells: CellType[]): CellType | null {
-    return cells.find(
-      (cell) =>
-        point.x >= cell.x &&
-        point.x <= cell.x + cell.width &&
-        point.y >= cell.y &&
-        point.y <= cell.y + cell.height
-    ) || null;
+  function findCellContainingPoint(
+    point: { x: number; y: number },
+    cells: CellType[]
+  ): CellType | null {
+    return (
+      cells.find(
+        (cell) =>
+          point.x >= cell.x &&
+          point.x <= cell.x + cell.width &&
+          point.y >= cell.y &&
+          point.y <= cell.y + cell.height
+      ) || null
+    );
   }
 
   // Função heurística (distância Euclidiana)
@@ -418,86 +434,95 @@ function Map() {
   }
 
   // Função de pathfinding usando A*
-function aStar(
-  cells: CellType[],
-  startCell: CellType,
-  endCell: CellType
-): CellType[] | null {
-  const openSet: NodeType[] = [];
-  const closedSet: Set<number> = new Set();
-  const cameFrom: { [key: number]: number } = {};
+  function aStar(
+    cells: CellType[],
+    startCell: CellType,
+    endCell: CellType
+  ): CellType[] | null {
+    const openSet: NodeType[] = [];
+    const closedSet: Set<number> = new Set();
+    const cameFrom: { [key: number]: number } = {};
 
-  // Inicializar o open set com o nó inicial
-  openSet.push({
-    cellId: startCell.id,
-    g: 0,
-    h: heuristic(startCell, endCell),
-    f: heuristic(startCell, endCell),
-    parent: null,
-  });
+    // Inicializar o open set com o nó inicial
+    openSet.push({
+      cellId: startCell.id,
+      g: 0,
+      h: heuristic(startCell, endCell),
+      f: heuristic(startCell, endCell),
+      parent: null,
+    });
 
-  // Mapa para armazenar os melhores g para cada célula
-  const gScores: { [key: number]: number } = {};
-  gScores[startCell.id] = 0;
+    // Mapa para armazenar os melhores g para cada célula
+    const gScores: { [key: number]: number } = {};
+    gScores[startCell.id] = 0;
 
-  while (openSet.length > 0) {
-    // Encontrar o nó com menor f no open set
-    openSet.sort((a, b) => a.f - b.f);
-    const current = openSet.shift()!;
+    while (openSet.length > 0) {
+      // Encontrar o nó com menor f no open set
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift()!;
 
-    // Se chegamos ao destino
-    if (current.cellId === endCell.id) {
-      // Reconstituir o caminho
-      const path: CellType[] = [];
-      let currentId = current.cellId;
-      while (currentId !== null && cameFrom.hasOwnProperty(currentId)) {
-        const cell = cells.find((c) => c.id === currentId);
-        if (cell) path.push(cell);
-        currentId = cameFrom[currentId];
+      // Se chegamos ao destino
+      if (current.cellId === endCell.id) {
+        // Reconstituir o caminho
+        const path: CellType[] = [];
+        let currentId = current.cellId;
+
+        while (currentId !== null && cameFrom.hasOwnProperty(currentId)) {
+          const cell = cells.find((c) => c.id === currentId);
+          if (cell) path.push(cell);
+          currentId = cameFrom[currentId];
+        }
+
+        // Adicionar a célula inicial
+        const startPathCell = cells.find((c) => c.id === startCell.id);
+        if (startPathCell) path.push(startPathCell);
+
+        path.reverse();
+        return path;
       }
-      path.reverse();
-      return path;
+
+      closedSet.add(current.cellId);
+
+      // Para cada vizinho
+      const currentCell = cells.find((c) => c.id === current.cellId)!;
+      currentCell.neighbors.forEach((neighborId) => {
+        if (closedSet.has(neighborId)) return;
+
+        const neighborCell = cells.find((c) => c.id === neighborId)!;
+        const tentativeG = current.g + distance(currentCell, neighborCell);
+
+        if (
+          !gScores.hasOwnProperty(neighborId) ||
+          tentativeG < gScores[neighborId]
+        ) {
+          cameFrom[neighborId] = current.cellId;
+          gScores[neighborId] = tentativeG;
+          const h = heuristic(neighborCell, endCell);
+          const f = tentativeG + h;
+
+          // Verificar se o vizinho já está no openSet
+          const existingNode = openSet.find((node) => node.cellId === neighborId);
+          if (!existingNode) {
+            openSet.push({
+              cellId: neighborId,
+              g: tentativeG,
+              h: h,
+              f: f,
+              parent: current.cellId,
+            });
+          } else if (tentativeG < existingNode.g) {
+            // Atualizar o nó existente
+            existingNode.g = tentativeG;
+            existingNode.f = f;
+            existingNode.parent = current.cellId;
+          }
+        }
+      });
     }
 
-    closedSet.add(current.cellId);
-
-    // Para cada vizinho
-    const currentCell = cells.find((c) => c.id === current.cellId)!;
-    currentCell.neighbors.forEach((neighborId) => {
-      if (closedSet.has(neighborId)) return;
-
-      const neighborCell = cells.find((c) => c.id === neighborId)!;
-      const tentativeG = current.g + distance(currentCell, neighborCell);
-
-      if (!gScores.hasOwnProperty(neighborId) || tentativeG < gScores[neighborId]) {
-        cameFrom[neighborId] = current.cellId;
-        gScores[neighborId] = tentativeG;
-        const h = heuristic(neighborCell, endCell);
-        const f = tentativeG + h;
-
-        // Verificar se o vizinho já está no openSet
-        const existingNode = openSet.find((node) => node.cellId === neighborId);
-        if (!existingNode) {
-          openSet.push({
-            cellId: neighborId,
-            g: tentativeG,
-            h: h,
-            f: f,
-            parent: current.cellId,
-          });
-        } else if (tentativeG < existingNode.g) {
-          // Atualizar o nó existente
-          existingNode.g = tentativeG;
-          existingNode.f = f;
-          existingNode.parent = current.cellId;
-        }
-      }
-    });
+    // Se não encontrou um caminho
+    return null;
   }
-
-  // Se não encontrou um caminho
-  return null;
-}
 
   // Handler para traçar o caminho
   const handleTracePath = () => {
@@ -534,18 +559,28 @@ function aStar(
       return;
     }
 
-    // Converter o caminho de células para uma lista de pontos (centros das células)
-    const pathPoints = foundPath.map((cell: any) => ({
-      x: cell.x + cell.width / 2,
-      y: cell.y + cell.height / 2,
-    }));
+    // Converter o caminho de células para uma lista de pontos
+    // Incluir a posição exata do robô como o primeiro ponto
+    // Incluir o centro da estação como o último ponto
+    const pathPoints: { x: number; y: number }[] = [
+      { x: robotPosition.x, y: robotPosition.y },
+    ];
+
+    foundPath.forEach((cell) => {
+      pathPoints.push({
+        x: cell.x + cell.width / 2,
+        y: cell.y + cell.height / 2,
+      });
+    });
+
+    pathPoints.push(stationCenter);
 
     setPath(pathPoints);
   };
 
   return (
     <Container>
-      <div style={{ marginBottom: "10px" }}>
+      <div style={{ marginBottom: "10px", display: "flex", gap: "10px", alignItems: "center" }}>
         <select value={selectedStation} onChange={handleSelectStation}>
           <option value="">Selecione uma Estação</option>
           {stations.map((st, i) => (
@@ -555,6 +590,15 @@ function aStar(
           ))}
         </select>
         <Button onClick={handleTracePath}>Traçar Caminho</Button>
+
+        {/* Select para controlar a visibilidade das linhas de divisão verticais */}
+        <select
+          value={showDivisionLines ? "show" : "hide"}
+          onChange={(e) => setShowDivisionLines(e.target.value === "show")}
+        >
+          <option value="show">Mostrar Linhas de Divisão</option>
+          <option value="hide">Esconder Linhas de Divisão</option>
+        </select>
       </div>
 
       <MapContainer
@@ -597,25 +641,25 @@ function aStar(
           />
         ))}
 
-        {divisionLines.map((x, index) => (
-          <div
-            key={index}
-            style={{
-              position: "absolute",
-              left: `${x}px`,
-              top: "0",
-              width: "1px",
-              height: `${mapLimits.height}px`,
-              backgroundColor: "blue",
-            }}
-          />
-        ))}
+        {/* Renderizar linhas de divisão verticais condicionais */}
+        {showDivisionLines &&
+          divisionLines.map((x, index) => (
+            <div
+              key={index}
+              style={{
+                position: "absolute",
+                left: `${x}px`,
+                top: "0",
+                width: "1px",
+                height: `${mapLimits.height}px`,
+                backgroundColor: "black",
+              }}
+            />
+          ))}
 
         {path.length > 1 && (
           <PathSVG>
-            <PathLine
-              points={path.map((p) => `${p.x},${p.y}`).join(" ")}
-            />
+            <PathLine points={path.map((p) => `${p.x},${p.y}`).join(" ")} />
           </PathSVG>
         )}
         <Robot
@@ -627,6 +671,7 @@ function aStar(
             top: `${robotPosition.y}px`,
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
+            zIndex: 2,
           }}
         />
       </MapContainer>
