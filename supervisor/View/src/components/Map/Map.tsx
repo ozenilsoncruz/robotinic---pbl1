@@ -64,7 +64,7 @@ function Map() {
 
   // Estado da posição do robô
   const [robotPosition, setRobotPosition] = useState({
-    x: 40, // Inicialmente centralizado no mapa
+    x: 40, // Inicialmente centralizado no mapa   #ROBo
     y: mapLimits.height / 2,
   });
 
@@ -209,8 +209,8 @@ function Map() {
     ).getBoundingClientRect();
     const x = Number((event.clientX - rect.left).toFixed(2));
     const y = Number((event.clientY - rect.top).toFixed(2));
-    const width = 10;
-    const height = 10;
+    const width = 25;
+    const height = 25;
 
     // Verificar se o ponto está dentro de alguma estação
     const isInsideStation = stations.some((station) => {
@@ -788,7 +788,7 @@ function Map() {
       { x: robotPosition.x, y: robotPosition.y },
     ];
 
-    foundPath.forEach((cell) => {
+    foundPath.forEach((cell) => { // 
       pathPoints.push({
         x: cell.x + cell.width / 2,
         y: cell.y + cell.height / 2,
