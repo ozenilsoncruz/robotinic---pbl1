@@ -142,6 +142,11 @@ function Map() {
   // Estado para controle das linhas de divisão verticais
   const [showDivisionLines, setShowDivisionLines] = useState<boolean>(true);
 
+  // Computar obstáculos a partir da posição do robô
+  const filteredObstacles = obstacles.filter(
+    (obs) => obs.x + obs.width >= robotPosition.x
+  );
+
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     // Se um drag ocorreu, não adicionar obstáculo
@@ -155,6 +160,22 @@ function Map() {
     const y = Number((event.clientY - rect.top).toFixed(2));
     const width = 10;
     const height = 10;
+
+    // Verificar se o ponto está dentro de alguma estação
+    const isInsideStation = stations.some((station) => {
+      return (
+        x >= station.x &&
+        x <= station.x + station.width &&
+        y >= station.y &&
+        y <= station.y + station.height
+      );
+    });
+
+    if (isInsideStation) {
+      alert("Não é permitido adicionar obstáculos dentro das estações.");
+      return;
+    }
+
     const newObstacle = { x, y, width, height };
 
     setObstacles((prevObjects: ObstacleType[]) => [...prevObjects, newObstacle]);
@@ -175,9 +196,9 @@ function Map() {
       return Array.from(verticalLinesSet).sort((a, b) => a - b);
     }
 
-    const lines = generateVerticalLines(obstacles);
+    const lines = generateVerticalLines(filteredObstacles);
     setDivisionLines(lines);
-  }, [obstacles]);
+  }, [filteredObstacles]);
 
   // Handlers para arrastar o robô
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
@@ -395,13 +416,13 @@ function Map() {
 
     const generatedCells = exactCellDecomposition(
       divisionLines,
-      obstacles,
+      filteredObstacles,
       mapLimits.width,
       mapLimits.height
     );
 
     setCells(generatedCells);
-  }, [divisionLines, obstacles, mapLimits.width, mapLimits.height]);
+  }, [divisionLines, filteredObstacles, mapLimits.width, mapLimits.height]);
 
   // Função para encontrar a célula que contém um ponto
   function findCellContainingPoint(
@@ -473,9 +494,11 @@ function Map() {
           currentId = cameFrom[currentId];
         }
 
-        // Adicionar a célula inicial
+        // Adicionar a célula inicial se ainda não estiver no caminho
         const startPathCell = cells.find((c) => c.id === startCell.id);
-        if (startPathCell) path.push(startPathCell);
+        if (startPathCell && !path.includes(startPathCell)) {
+          path.push(startPathCell);
+        }
 
         path.reverse();
         return path;
@@ -491,10 +514,7 @@ function Map() {
         const neighborCell = cells.find((c) => c.id === neighborId)!;
         const tentativeG = current.g + distance(currentCell, neighborCell);
 
-        if (
-          !gScores.hasOwnProperty(neighborId) ||
-          tentativeG < gScores[neighborId]
-        ) {
+        if (!gScores.hasOwnProperty(neighborId) || tentativeG < gScores[neighborId]) {
           cameFrom[neighborId] = current.cellId;
           gScores[neighborId] = tentativeG;
           const h = heuristic(neighborCell, endCell);
@@ -576,6 +596,67 @@ function Map() {
     pathPoints.push(stationCenter);
 
     setPath(pathPoints);
+
+    // Gerar a lista de distâncias e ângulos
+    const movements: { distance: number; angle?: number }[] = [];
+
+    let previousPoint = pathPoints[0];
+    let previousAngle: number | null = null;
+
+    for (let i = 1; i < pathPoints.length; i++) {
+      const currentPoint = pathPoints[i];
+
+      // Calcular a distância entre previousPoint e currentPoint
+      const distanceBetween = Math.hypot(
+        currentPoint.x - previousPoint.x,
+        currentPoint.y - previousPoint.y
+      );
+
+      // Calcular o ângulo entre previousPoint e currentPoint
+      const angle = Math.atan2(currentPoint.y - previousPoint.y, currentPoint.x - previousPoint.x) * (180 / Math.PI);
+
+      let angleToTurn: number | undefined = undefined;
+
+      if (previousAngle !== null) {
+        angleToTurn = angle - previousAngle;
+
+        // Ajustar o ângulo para ficar entre -180 e 180 graus
+        if (angleToTurn > 180) {
+          angleToTurn -= 360;
+        } else if (angleToTurn < -180) {
+          angleToTurn += 360;
+        }
+      }
+
+      // Adicionar ao movimento
+      const movement: { distance: number; angle?: number } = {
+        distance: Number(distanceBetween.toFixed(2)),
+      };
+
+      if (angleToTurn !== undefined) {
+        movement.angle = Number(angleToTurn.toFixed(2));
+      }
+
+      movements.push(movement);
+
+      // Atualizar para o próximo passo
+      previousPoint = currentPoint;
+      previousAngle = angle;
+    }
+
+    // Formatar a lista de movimentos
+    let movementList = "";
+    movements.forEach((move, index) => {
+      movementList += `Passo ${index + 1}:\n`;
+      movementList += `- Distância: ${move.distance} pixels\n`;
+      if (move.angle !== undefined) {
+        movementList += `- Ângulo de Rotação: ${move.angle}°\n`;
+      }
+      movementList += "\n";
+    });
+
+    // Exibir a lista de movimentos em um alerta
+    console.log(`Movimentos:\n\n${movementList}`);
   };
 
   return (
