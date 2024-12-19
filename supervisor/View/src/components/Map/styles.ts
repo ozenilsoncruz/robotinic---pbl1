@@ -80,3 +80,19 @@ export const Obstacle = styled("div")`
   background-color: green;
   background-size: cover;
 `;
+
+export const PathLine = styled.polyline`
+  fill: none;
+  stroke: red;
+  stroke-width: 2;
+`;
+
+
+export const PathSVG = styled.svg`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 816px; /* Deve corresponder à largura do mapa */
+  height: 540px; /* Deve corresponder à altura do mapa */
+  pointer-events: none; /* Permite que os eventos de mouse passem através do SVG */
+`;
