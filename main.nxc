@@ -49,8 +49,23 @@ int corDetectada = 0;
 
 mutex motorDireitoEsquerdoMutex;
 
+
+float motorEsquerdoAnteriorCount = 0;
+float motorDireitoAnteriorCount = 0;
+
 void enviarMensagem(string msg) {
     SendMessage(MAILBOX_SEND, msg);
+}
+
+void enviarOdometriaUmaVez() {
+    float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO);
+    float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO);
+
+
+    string msg = NumToStr(motorEsquerdoCount) + "," + NumToStr(motorDireitoCount);
+    enviarMensagem(msg);
+    ResetRotationCount(MOTOR_DIREITO);
+    ResetRotationCount(MOTOR_ESQUERDO);
 }
 
 void girarMotoresGraus(float graus) {
@@ -103,6 +118,7 @@ void girarMotoresVoltas(float num_voltas, bool frente = true) {
 
         if (esquerdo_pronto && direito_pronto) {
             Off(MOTOR_DIREITO_ESQUERDO);
+            enviarOdometriaUmaVez();
             break;
         }
         Wait(10);
@@ -146,6 +162,7 @@ void girarEmGraus(int grausRotacao) {
             // Parar os motores
             Off(MOTOR_ESQUERDO);
             Off(MOTOR_DIREITO);
+            enviarOdometriaUmaVez();
             break;
         }
         Wait(10); // Pequeno atraso para evitar uso excessivo de CPU
@@ -253,6 +270,8 @@ task executarAcoesSupervisor() {
                     //TextOut(0, LCD_LINE1, "Comando inválido");
                 }
                 Wait(500);
+                ResetRotationCount(MOTOR_DIREITO);
+                ResetRotationCount(MOTOR_ESQUERDO);
                 startStr += commaPos + 1;
             }
 
@@ -278,15 +297,19 @@ string lerCor(int cor) {
     else return "Unknown";
 }
 
+
+
 task enviarOdometria() {
     while(true) {
-        float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO);
         float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO);
-        if(motorEsquerdoCount < 10 || motorDireitoCount < 10) continue;
-        string msg = NumToStr(motorEsquerdoCount) + "," + NumToStr(motorDireitoCount);
+        float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO);
+
+        motorEsquerdoAnteriorCount = motorEsquerdoCount - motorEsquerdoAnteriorCount;
+        motorDireitoAnteriorCount = motorDireitoCount - motorDireitoAnteriorCount;
+        if(motorEsquerdoAnteriorCount < 10 || motorDireitoAnteriorCount < 10 ) continue;
+
+        string msg = NumToStr(motorEsquerdoAnteriorCount) + "," + NumToStr(motorEsquerdoAnteriorCount);
         enviarMensagem(msg);
-        ResetRotationCount(MOTOR_DIREITO);
-        ResetRotationCount(MOTOR_ESQUERDO);
         Wait(500);
     }
 }
@@ -335,6 +358,6 @@ task main() {
 
 
     StartTask(executarAcoesSupervisor);
-    //StartTask(enviarOdometria);
+    // StartTask(enviarOdometria);
     // contornarObstaculo();
 }
