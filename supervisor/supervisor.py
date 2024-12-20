@@ -33,13 +33,12 @@ def calculaOdometria(motorEsquerdo: int, motorDireito: int) -> Tuple[int]:
     deslocamento_motor_direito = motorDireito/360 * pi * (DIAMETRO_RODA)
     deslocamento_motor_esquerdo = motorEsquerdo/360 * pi * (DIAMETRO_RODA)
     deslocamento_medio = ((deslocamento_motor_direito) + (deslocamento_motor_esquerdo)) / 2 
-    mudanca_angulo = (deslocamento_motor_direito - deslocamento_motor_esquerdo) / (DISTANCIA_ENTRE_RODAS)
+    mudanca_angulo = (deslocamento_motor_esquerdo - deslocamento_motor_direito) / (DISTANCIA_ENTRE_RODAS)
     
     # Se ambos os motores são negativos, invertemos a direção do cálculo do ângulo
     if motorEsquerdo < 0 and motorDireito < 0:
         mudanca_angulo = -mudanca_angulo  
     angulo += (mudanca_angulo) 
-    
     delta_x = deslocamento_medio * cos(angulo)
     delta_y = deslocamento_medio * sin(angulo)
     
@@ -55,6 +54,7 @@ def calculaOdometria(motorEsquerdo: int, motorDireito: int) -> Tuple[int]:
 
 @app.websocket("/ws/position")
 async def websocket_endpoint(websocket: WebSocket):
+    global x_ant, y_ant
     await websocket.accept()
 
     brick = conectar_nxt(ENDERECO)
@@ -74,8 +74,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     data = msg.split(",")
                     
                     x, y = calculaOdometria(float(data[0]), float(data[1]))
+                    
                     robot_position["x"] = x
-                    robot_position["y"] = y
+                    robot_position["y"] = y 
                     await websocket.send_json(robot_position)
                 except (ValueError, TypeError) as e:
                     print(f"Mensagem: {msg}. Erro: {e}")
