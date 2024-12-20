@@ -27,7 +27,7 @@ async def get():
     except FileNotFoundError:
         return HTMLResponse("Arquivo index.html não encontrado.", status_code=404)
 
-def calculaOdometria(motorEsquerdo: int, motorDireito: int, compensacao: int) -> Tuple[int]:
+def calculaOdometria(motorEsquerdo: int, motorDireito: int) -> Tuple[int]:
     global angulo
     
     deslocamento_motor_direito = motorDireito/360 * pi * (DIAMETRO_RODA)
@@ -38,7 +38,7 @@ def calculaOdometria(motorEsquerdo: int, motorDireito: int, compensacao: int) ->
     # Se ambos os motores são negativos, invertemos a direção do cálculo do ângulo
     if motorEsquerdo < 0 and motorDireito < 0:
         mudanca_angulo = -mudanca_angulo  
-    angulo += (mudanca_angulo + (compensacao / 57.2958)) 
+    angulo += (mudanca_angulo) 
     
     delta_x = deslocamento_medio * cos(angulo)
     delta_y = deslocamento_medio * sin(angulo)
@@ -73,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     data = msg.split(",")
                     
-                    x, y = calculaOdometria(float(data[0]), float(data[1]), float(data[2]))
+                    x, y = calculaOdometria(float(data[0]), float(data[1]))
                     robot_position["x"] = x
                     robot_position["y"] = y
                     await websocket.send_json(robot_position)

@@ -175,8 +175,17 @@ function Map() {
       // Ex: { "x": 100.23, "y": 200.45 }
       try {
         const data = JSON.parse(event.data);
+        console.log("Mensagem recebida: ", data);
         if (data.x !== undefined && data.y !== undefined) {
-          setRobotPosition({ x: data.x, y: data.y });
+          const newX = data.x*3;
+          const newY = data.y*3;
+
+          setRobotPosition(
+            (prev) => ({
+              x: prev.x + newX,
+              y: prev.y + newY
+            })
+          );
         }
       } catch (error) {
         console.error("Falha ao analisar a mensagem do servidor:", error);
@@ -194,7 +203,7 @@ function Map() {
     return () => {
       ws.close();
     };
-  }, [path]);
+  }, []);
 
   // Função para adicionar novos obstáculos ao clicar no mapa
   function handleMapClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
@@ -858,14 +867,18 @@ function Map() {
     movements.forEach((move, index) => {
       const { distance, angle } = move;
 
-      if (angle === undefined || angle === previousAngle) {
+      if (angle === undefined || angle === previousAngle || index==0) {
         accumulatedDistance += distance;
       } else {
         if (accumulatedDistance > 0) {
           compactedMovements += `M:${Math.trunc((accumulatedDistance / 3))},`;
         }
         if(angle !== 0){
-          compactedMovements += `R:${-Math.trunc(angle)},`;
+          if(angle > 0){
+            compactedMovements += `L:${Math.abs(Math.trunc(angle))},`; 
+          }else{
+            compactedMovements += `R:${Math.abs(Math.trunc(angle))},`; 
+          }
         accumulatedDistance = distance;
         }
       }
