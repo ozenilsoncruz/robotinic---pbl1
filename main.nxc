@@ -54,7 +54,7 @@ void enviarMensagem(string msg) {
 }
 
 void girarMotoresGraus(float graus) {
-    int graus_motor = abs(graus)           // Quantos graus os motores devem girar
+    int graus_motor = abs(graus);           // Quantos graus os motores devem girar
     int direcao = graus > 0 ? 1 : -1;     // Determina a direção do movimento
 
     ResetRotationCount(MOTOR_ESQUERDO);
@@ -117,8 +117,9 @@ void acionarMotores(bool frente=true) {
 
 
 void girarEmGraus(int grausRotacao) {
-    int graus = grausRotacao > 0 ? grausRotacao - 19 : grausRotacao + 19;
-    
+    if(grausRotacao == 0) return;
+    float compensacao = abs(grausRotacao/5);
+    int graus = grausRotacao > 0 ? grausRotacao - compensacao : grausRotacao + compensacao;
     int direcao = graus > 0 ? 1 : -1; // Determina a direção do giro
     float distancia_percorrida = (DISTANCIA_ENTRE_RODAS * PI * abs(graus));
     float numero_rotacoes = distancia_percorrida / (PI * DIAMETRO_RODA);
@@ -138,7 +139,7 @@ void girarEmGraus(int grausRotacao) {
         int pos_atual_direito = MotorRotationCount(MOTOR_DIREITO);
 
         // Verificar se ambos os motores atingiram a rotação desejada
-        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;   
+        bool esquerdo_pronto = abs(pos_atual_esquerdo - pos_inicial_esquerdo) >= graus_motor;
         bool direito_pronto = abs(pos_atual_direito - pos_inicial_direito) >= graus_motor;
 
         if (esquerdo_pronto && direito_pronto) {
@@ -208,10 +209,9 @@ task executarAcoesSupervisor() {
         // Recebe a mensagem via Bluetooth
         ReceiveMessage(MAILBOX_RECIVE, true, msg);
         //Tipo de mensagem esperada -> M:10,R:90,P:1000
-        msg = "M:10";
         if (msg != "") {
             Acquire(motorDireitoEsquerdoMutex);
-           TextOut(0, LCD_LINE1, "Msg");
+           //TextOut(0, LCD_LINE1, "Msg");
             int startStr = 0;
             int len = StrLen(msg);
 
@@ -237,24 +237,29 @@ task executarAcoesSupervisor() {
                 string command = SubStr(commandPair, 0, colonPos);
                 float value = StrToNum(SubStr(commandPair, colonPos + 1, StrLen(commandPair) - (colonPos + 1)));
 
+                // enviarMensagem(command + ":" + NumToStr(value));
+
                 // Execute the command
                 if (command == "M") {
-                    TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
+                    //TextOut(0, LCD_LINE1, "Movendo: " + NumToStr(value) + " cm");
                     andarPorCm(value);
+                } else if (command == "L") {
+                    //TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
+                    girarEmGraus(-value);
                 } else if (command == "R") {
-                    TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
+                    //TextOut(0, LCD_LINE1, "Rodando: " + NumToStr(value) + " graus");
                     girarEmGraus(value);
                 } else {
-                    TextOut(0, LCD_LINE1, "Comando inválido");
+                    //TextOut(0, LCD_LINE1, "Comando inválido");
                 }
-                
+                Wait(500);
                 startStr += commaPos + 1;
             }
 
             msg = "";
         }
         Release(motorDireitoEsquerdoMutex);
-        Wait(50);
+        Wait(100);
     }
 }
 
@@ -277,6 +282,7 @@ task enviarOdometria() {
     while(true) {
         float motorDireitoCount = MotorRotationCount(MOTOR_DIREITO);
         float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO);
+        if(motorEsquerdoCount < 10 || motorDireitoCount < 10) continue;
         string msg = NumToStr(motorEsquerdoCount) + "," + NumToStr(motorDireitoCount);
         enviarMensagem(msg);
         ResetRotationCount(MOTOR_DIREITO);
@@ -292,11 +298,11 @@ task mostrarInformacoes() {
         float motorEsquerdoCount = MotorRotationCount(MOTOR_ESQUERDO)/360;
         int distancia = SensorUS(SENSOR_ULTRASSOM);
         int valorLuz = Sensor(SENSOR_COR);
-        TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia));
-        TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
-        TextOut(0, LCD_LINE3, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
-        TextOut(0, LCD_LINE4, "Per" + NumToStr(distanciaPercorrer));
-       
+        //TextOut(0, LCD_LINE1, "Dis:" + NumToStr(distancia));
+        //TextOut(0, LCD_LINE2, "Cor:" + lerCor(corDetectada) + " V:" + NumToStr(valorLuz));
+        //TextOut(0, LCD_LINE3, "D:" + NumToStr(motorDireitoCount) + " E:" + NumToStr(motorEsquerdoCount));
+        //TextOut(0, LCD_LINE4, "Per" + NumToStr(distanciaPercorrer));
+
         Wait(100);
     }
 }
@@ -329,5 +335,6 @@ task main() {
 
 
     StartTask(executarAcoesSupervisor);
-    contornarObstaculo();  
+    //StartTask(enviarOdometria);
+    // contornarObstaculo();
 }
